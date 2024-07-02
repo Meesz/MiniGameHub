@@ -120,7 +120,6 @@ public final class MiniGameHub extends JavaPlugin {
         if (args[1].equalsIgnoreCase("survivalgames")) {
             String worldName = args[2];
             survivalGames.setupWorld(sender, worldName);
-            sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
         } else {
             sender.sendMessage("Unknown game for setup: " + args[1]);
         }

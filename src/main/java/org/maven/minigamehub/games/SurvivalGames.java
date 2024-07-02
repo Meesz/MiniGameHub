@@ -44,6 +44,7 @@ public class SurvivalGames implements Listener {
     private CommandSender currentSender = null;
     private boolean creatorModeEnabled = false;
     private final ConfigManager configManager;
+    private String currentGameWorld = null;
 
     /**
      * Constructor for the SurvivalGames class.
@@ -118,17 +119,31 @@ public class SurvivalGames implements Listener {
             return;
         }
 
-        MultiverseWorld world = worldManager.getMVWorld(worldName);
-        if (world == null) {
+        MultiverseWorld originalWorld = worldManager.getMVWorld(worldName);
+        if (originalWorld == null) {
             sender.sendMessage("World " + worldName + " does not exist.");
             return;
         }
 
+        // Create a copy of the world
+        String gameWorldName = worldName + "_game_" + System.currentTimeMillis();
+        if (!worldManager.cloneWorld(worldName, gameWorldName)) {
+            sender.sendMessage("Failed to create a copy of the world.");
+            return;
+        }
+        currentGameWorld = gameWorldName;
+
+        MultiverseWorld gameWorld = worldManager.getMVWorld(gameWorldName);
         List<Location> spawnPoints = worldSpawnPoints.get(worldName);
         if (spawnPoints == null || spawnPoints.size() < playerNames.size()) {
             sender.sendMessage("Not enough spawn points set in world " + worldName + ".");
             return;
         }
+
+        // Update spawn points for the new world
+        List<Location> gameSpawnPoints = spawnPoints.stream()
+            .map(loc -> new Location(gameWorld.getCBWorld(), loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch()))
+            .collect(Collectors.toList());
 
         List<Player> validPlayers = getValidPlayers(playerNames);
         if (validPlayers.size() < 2) {
@@ -140,7 +155,7 @@ public class SurvivalGames implements Listener {
         gameRunning = true;
         sender.sendMessage("Survival games is starting in 10 seconds!");
 
-        startGameWithDelay(spawnPoints);
+        startGameWithDelay(gameSpawnPoints);
     }
 
     private List<Player> getValidPlayers(List<String> playerNames) {
@@ -210,6 +225,12 @@ public class SurvivalGames implements Listener {
         cleanupGame();
         sender.sendMessage("Survival games has been stopped.");
         saveSpawnPoints();
+
+        // Delete the game world copy
+        if (currentGameWorld != null) {
+            worldManager.deleteWorld(currentGameWorld);
+            currentGameWorld = null;
+        }
     }
 
     private void restorePlayerState(Player player) {
