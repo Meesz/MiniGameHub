@@ -47,6 +47,7 @@ public class DeathSwap {
      */
     public void start(CommandSender sender, List<String> playerNames) {
         players.clear();
+        // Add players to the game and clear their inventories
         for (String name : playerNames) {
             Player player = Bukkit.getPlayerExact(name);
             if (player != null && player.isOnline()) {
@@ -58,11 +59,13 @@ public class DeathSwap {
             }
         }
 
+        // Check if there are at least two players to start the game
         if (players.size() < 2) {
             sender.sendMessage("At least two players are required to start DeathSwap.");
             return;
         }
 
+        // Broadcast the start message to all players
         sender.sendMessage("DeathSwap is starting with players: " + String.join(", ", playerNames));
         startSwapTimer();
     }

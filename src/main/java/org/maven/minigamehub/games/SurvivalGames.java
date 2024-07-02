@@ -25,6 +25,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Class representing the SurvivalGames game.
+ * Implements the Listener interface to handle various game events.
+ */
 public class SurvivalGames implements Listener {
     private final JavaPlugin plugin;
     private final MVWorldManager worldManager;
@@ -35,12 +39,25 @@ public class SurvivalGames implements Listener {
     private CommandSender currentSender = null;
     private boolean creatorModeEnabled = false;
 
+    /**
+     * Constructor for the SurvivalGames class.
+     *
+     * @param plugin        The JavaPlugin instance.
+     * @param worldManager  The MVWorldManager instance.
+     */
     public SurvivalGames(JavaPlugin plugin, MVWorldManager worldManager) {
         this.plugin = plugin;
         this.worldManager = worldManager;
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    /**
+     * Starts the SurvivalGames game.
+     *
+     * @param sender      The sender of the command.
+     * @param worldName   The name of the world where the game will be played.
+     * @param playerNames The list of player names to include in the game.
+     */
     public void start(CommandSender sender, String worldName, List<String> playerNames) {
         currentSender = sender;
         if (gameRunning) {
@@ -80,6 +97,7 @@ public class SurvivalGames implements Listener {
         gameRunning = true;
         sender.sendMessage("Survival games is starting in 10 seconds!");
 
+        // Schedule a task to start the game after a delay
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -94,7 +112,7 @@ public class SurvivalGames implements Listener {
             }
         }.runTaskLater(plugin, 200L); // 10 seconds delay (20 ticks per second)
 
-        // After teleporting players:
+        // Schedule a task to remove the slowness effect after a delay
         new BukkitRunnable() {
             public void run() {
                 players.forEach(player -> player.removePotionEffect(PotionEffectType.SLOWNESS));
@@ -103,6 +121,11 @@ public class SurvivalGames implements Listener {
         }.runTaskLater(plugin, 200L); // Adjust time as needed
     }
 
+    /**
+     * Stops the SurvivalGames game.
+     *
+     * @param sender The sender of the command.
+     */
     public void stop(CommandSender sender) {
         if (!gameRunning) {
             sender.sendMessage("No game is currently running.");
@@ -124,11 +147,22 @@ public class SurvivalGames implements Listener {
         sender.sendMessage("Survival games has been stopped.");
     }
 
+    /**
+     * Enters setup mode for the SurvivalGames game in a specific world.
+     *
+     * @param sender    The sender of the command.
+     * @param worldName The name of the world to set up.
+     */
     public void setupWorld(CommandSender sender, String worldName) {
         creatorModeEnabled = true;
         sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
     }
 
+    /**
+     * Handles player interaction events.
+     *
+     * @param event The PlayerInteractEvent.
+     */
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
@@ -145,6 +179,11 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles block break events.
+     *
+     * @param event The BlockBreakEvent.
+     */
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         if (players.contains(event.getPlayer())) {
@@ -152,6 +191,11 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles player death events.
+     *
+     * @param event The PlayerDeathEvent.
+     */
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
@@ -162,6 +206,10 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Checks if there is a winner in the SurvivalGames game.
+     * If there is only one player left, they are declared the winner.
+     */
     private void checkForWinner() {
         if (players.size() == 1) {
             Player winner = players.get(0);

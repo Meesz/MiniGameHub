@@ -13,8 +13,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * ConfigManager is responsible for managing the configuration files for the plugin.
- * It handles loading, saving, and converting configurations for different game modes.
+ * ConfigManager is responsible for managing the configuration files for the
+ * plugin.
+ * It handles loading, saving, and converting configurations for different game
+ * modes.
  */
 public class ConfigManager {
   private final JavaPlugin plugin;
@@ -49,18 +51,18 @@ public class ConfigManager {
 
     config = YamlConfiguration.loadConfiguration(configFile);
 
-    // Load game-specific configs
-    loadGameConfig("survivalgames");
-    loadGameConfig("deathswap");
-    loadGameConfig("spleef");
+    // Ensure all game-specific configs are created and loaded
+    createAndLoadGameConfig("survivalgames");
+    createAndLoadGameConfig("deathswap");
+    createAndLoadGameConfig("spleef");
   }
 
   /**
-   * Loads the configuration for a specific game.
+   * Ensures the configuration file for a specific game is created and loaded.
    * 
    * @param gameName The name of the game.
    */
-  private void loadGameConfig(String gameName) {
+  private void createAndLoadGameConfig(String gameName) {
     File gameConfigFile = new File(plugin.getDataFolder(), gameName + ".yml");
 
     if (!gameConfigFile.exists()) {
@@ -70,27 +72,19 @@ public class ConfigManager {
     FileConfiguration gameConfig = YamlConfiguration.loadConfiguration(gameConfigFile);
     gameConfigs.put(gameName, gameConfig);
 
-    // If the game is "survivalgames", load the spawn points
+    // Load specific configurations like spawn points for "survivalgames"
     if (gameName.equals("survivalgames")) {
-      gameConfig = getGameConfig(gameName);
-      worldSpawnPoints = convertListToSpawnPoints(gameConfig.getList("worldSpawnPoints"));
+      loadSurvivalGamesSpawnPoints(gameConfig);
     }
   }
 
   /**
-   * Converts spawn points from a Map to a List of Strings for storage.
+   * Loads spawn points for "survivalgames" from its configuration.
    * 
-   * @param spawnPoints The map of spawn points.
-   * @return A list of strings representing the spawn points.
+   * @param gameConfig The configuration file for "survivalgames".
    */
-  private List<String> convertSpawnPointsToList(Map<String, List<Location>> spawnPoints) {
-    List<String> list = new ArrayList<>();
-    for (Map.Entry<String, List<Location>> entry : spawnPoints.entrySet()) {
-      for (Location location : entry.getValue()) {
-        list.add(entry.getKey() + "," + location.getX() + "," + location.getY() + "," + location.getZ());
-      }
-    }
-    return list;
+  private void loadSurvivalGamesSpawnPoints(FileConfiguration gameConfig) {
+    worldSpawnPoints = convertListToSpawnPoints(gameConfig.getList("worldSpawnPoints"));
   }
 
   /**
