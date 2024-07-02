@@ -3,15 +3,20 @@ package org.maven.minigamehub.games;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.api.MultiverseWorld;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.ArrayList;
@@ -26,6 +31,8 @@ public class SurvivalGames implements Listener {
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
     private final Map<String, List<Location>> worldSpawnPoints = new HashMap<>();
     private boolean gameRunning = false;
+    private CommandSender currentSender = null;
+    private boolean creatorModeEnabled = false;
 
     public SurvivalGames(JavaPlugin plugin, MVWorldManager worldManager) {
         this.plugin = plugin;
@@ -34,6 +41,7 @@ public class SurvivalGames implements Listener {
     }
 
     public void start(CommandSender sender, String worldName, List<String> playerNames) {
+        currentSender = sender;
         if (gameRunning) {
             sender.sendMessage("The game is already running.");
             return;
@@ -77,11 +85,21 @@ public class SurvivalGames implements Listener {
                 for (int i = 0; i < players.size(); i++) {
                     Player player = players.get(i);
                     player.teleport(spawnPoints.get(i));
+                    player.setGameMode(GameMode.ADVENTURE);
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 1000000, 255, false, false));
                     player.sendMessage("Survival games has started!");
                     // Give initial items, etc.
                 }
             }
         }.runTaskLater(plugin, 200L); // 10 seconds delay (20 ticks per second)
+
+        // After teleporting players:
+        new BukkitRunnable() {
+            public void run() {
+                players.forEach(player -> player.removePotionEffect(PotionEffectType.SLOWNESS));
+                Bukkit.broadcastMessage("Survival Games has started!");
+            }
+        }.runTaskLater(plugin, 200L); // Adjust time as needed
     }
 
     public void stop(CommandSender sender) {
@@ -96,12 +114,18 @@ public class SurvivalGames implements Listener {
                 player.getInventory().setContents(savedInventory);
             }
             player.sendMessage("Survival games has ended!");
+            // Teleport players to a lobby or predefined location
         }
 
         players.clear();
         playerInventories.clear();
         gameRunning = false;
         sender.sendMessage("Survival games has been stopped.");
+    }
+
+    public void setupWorld(CommandSender sender, String worldName) {
+        creatorModeEnabled = true;
+        sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
     }
 
     @EventHandler
@@ -112,6 +136,36 @@ public class SurvivalGames implements Listener {
             String worldName = location.getWorld().getName();
             worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
             player.sendMessage("Spawn point set at " + location);
+        } else if (creatorModeEnabled && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            Location location = event.getClickedBlock().getLocation();
+            String worldName = location.getWorld().getName();
+            worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
+            event.getPlayer().sendMessage("Spawn point set at " + location);
+        }
+    }
+
+    @EventHandler
+    public void onBlockBreak(BlockBreakEvent event) {
+        if (players.contains(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (players.contains(player)) {
+            player.setGameMode(GameMode.SPECTATOR);
+            players.remove(player);
+            checkForWinner();
+        }
+    }
+
+    private void checkForWinner() {
+        if (players.size() == 1) {
+            Player winner = players.get(0);
+            Bukkit.broadcastMessage(winner.getName() + " has won the Survival Games!");
+            stop(currentSender); // Implement stop method to handle post-game logic
         }
     }
 }

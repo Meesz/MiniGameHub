@@ -24,36 +24,65 @@ public final class MiniGameHub extends JavaPlugin {
     private DeathSwap deathSwap;
     private Spleef spleef;
 
+    /**
+     * Called when the plugin is enabled.
+     * Initializes the configuration manager and sets up the game instances.
+     */
     @Override
     public void onEnable() {
+        // Initialize the configuration manager and set up the configuration files
         configManager = new ConfigManager(this);
         configManager.setup();
+
+        // Get the Multiverse-Core plugin to manage worlds
         MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
         if (core != null) {
             MVWorldManager worldManager = core.getMVWorldManager();
+            // Initialize the SurvivalGames instance with the world manager
             survivalGames = new SurvivalGames(this, worldManager);
         } else {
+            // Log a warning if Multiverse-Core is not found
             getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
             survivalGames = null;
         }
+
+        // Initialize other game instances
         deathSwap = new DeathSwap(this, configManager);
         spleef = new Spleef();
+
+        // Log that the plugin has been enabled
         getLogger().info("MiniGameHub has been enabled!");
     }
 
+    /**
+     * Called when the plugin is disabled.
+     * Logs that the plugin has been disabled.
+     */
     @Override
     public void onDisable() {
         getLogger().info("MiniGameHub has been disabled!");
     }
 
+    /**
+     * Handles commands sent to the plugin.
+     * 
+     * @param sender  The sender of the command.
+     * @param command The command that was sent.
+     * @param label   The alias of the command that was used.
+     * @param args    The arguments passed with the command.
+     * @return true if the command was handled, false otherwise.
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        // Check if the command is "minigame"
         if (command.getName().equalsIgnoreCase("minigame")) {
+            // Check if there are enough arguments
             if (args.length < 2) {
                 sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
                 return false;
             }
 
+            // Handle the "start" subcommand
             if (args[0].equalsIgnoreCase("start")) {
                 String game = args[1].toLowerCase();
                 String worldName = args.length > 2 ? args[2] : null;
@@ -68,7 +97,22 @@ public final class MiniGameHub extends JavaPlugin {
                     e.printStackTrace();
                 }
                 return true;
-            } else {
+            } 
+            // Handle the "setup" subcommand for SurvivalGames
+            else if (args[0].equalsIgnoreCase("setup")) {
+                if (args[1].equalsIgnoreCase("survivalgames")) {
+                    String worldName = args.length > 2 ? args[2] : null;
+                    if (worldName != null) {
+                        survivalGames.setupWorld(sender, worldName);
+                        sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
+                    } else {
+                        sender.sendMessage("Usage: /minigame setup survivalgames <world>");
+                    }
+                    return true;
+                }
+            } 
+            // If the subcommand is not recognized, show usage message
+            else {
                 sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
                 return false;
             }
