@@ -257,6 +257,7 @@ public class SurvivalGames implements Listener {
             event.setCancelled(true);
         }
     }
+
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
