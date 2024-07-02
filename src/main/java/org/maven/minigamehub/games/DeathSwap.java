@@ -35,6 +35,7 @@ public class DeathSwap implements Listener {
     private final int swapInterval;
     private BukkitRunnable swapTimerTask;
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
+    private boolean creatorMode = false;
 
     /**
      * Constructor for the DeathSwap class.
@@ -100,7 +101,8 @@ public class DeathSwap implements Listener {
                 swapPlayers();
             }
         };
-        swapTimerTask.runTaskTimer(plugin, (long) swapInterval * TICKS_PER_SECOND, (long) swapInterval * TICKS_PER_SECOND);
+        swapTimerTask.runTaskTimer(plugin, (long) swapInterval * TICKS_PER_SECOND,
+                (long) swapInterval * TICKS_PER_SECOND);
     }
 
     /**
@@ -270,5 +272,34 @@ public class DeathSwap implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         handlePlayerDisconnect(event.getPlayer());
+    }
+
+    /**
+     * Enables or disables creator mode for the game admin.
+     *
+     * @param sender The command sender (game admin).
+     * @param enable True to enable creator mode, false to disable.
+     */
+    public void setCreatorMode(CommandSender sender, boolean enable) {
+        if (!sender.isOp()) {
+            sender.sendMessage("You don't have permission to use this command.");
+            return;
+        }
+
+        this.creatorMode = enable;
+        if (enable) {
+            sender.sendMessage("Creator mode enabled for DeathSwap. You can now set up the game environment.");
+        } else {
+            sender.sendMessage("Creator mode disabled for DeathSwap.");
+        }
+    }
+
+    /**
+     * Checks if creator mode is currently enabled.
+     *
+     * @return True if creator mode is enabled, false otherwise.
+     */
+    public boolean isCreatorModeEnabled() {
+        return creatorMode;
     }
 }
