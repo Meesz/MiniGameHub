@@ -29,7 +29,7 @@ public class DeathSwap {
     /**
      * Constructor for the DeathSwap class.
      *
-     * @param plugin The JavaPlugin instance.
+     * @param plugin        The JavaPlugin instance.
      * @param configManager The ConfigManager instance.
      */
     public DeathSwap(JavaPlugin plugin, ConfigManager configManager) {
