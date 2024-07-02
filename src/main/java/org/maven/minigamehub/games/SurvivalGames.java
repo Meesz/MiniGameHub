@@ -252,12 +252,6 @@ public class SurvivalGames implements Listener {
             worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
             player.sendMessage("Spawn point set at " + location);
             saveSpawnPoints();
-        } else if (creatorModeEnabled && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            Location location = event.getClickedBlock().getLocation();
-            String worldName = location.getWorld().getName();
-            worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
-            player.sendMessage("Spawn point set at " + location);
-            saveSpawnPoints();
         }
     }
 
