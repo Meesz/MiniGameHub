@@ -3,6 +3,7 @@ package org.maven.minigamehub.games;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -229,6 +230,41 @@ public class DeathSwap implements Listener {
                 stopGame();
             }
         }
+    }
+
+    /**
+     * Enters setup mode for the DeathSwap game.
+     *
+     * @param sender The sender of the command.
+     */
+    public void setup(CommandSender sender) {
+        if (!sender.isOp()) {
+            sender.sendMessage("You don't have permission to use this command.");
+            return;
+        }
+
+        // Load configuration
+        FileConfiguration config = configManager.getGameConfig("deathswap");
+
+        // Set up default values if they don't exist
+        if (!config.contains("minSwapTime")) {
+            config.set("minSwapTime", 30); // Default minimum swap time in seconds
+        }
+        if (!config.contains("maxSwapTime")) {
+            config.set("maxSwapTime", 300); // Default maximum swap time in seconds
+        }
+        if (!config.contains("warningTime")) {
+            config.set("warningTime", 10); // Default warning time before swap in seconds
+        }
+
+        // Save the configuration
+        configManager.saveGameConfig("deathswap");
+
+        sender.sendMessage("DeathSwap setup complete. Configuration saved.");
+        sender.sendMessage("You can modify the following settings in the deathswap.yml file:");
+        sender.sendMessage("- minSwapTime: Minimum time between swaps (in seconds)");
+        sender.sendMessage("- maxSwapTime: Maximum time between swaps (in seconds)");
+        sender.sendMessage("- warningTime: Time before swap to warn players (in seconds)");
     }
 
     @EventHandler

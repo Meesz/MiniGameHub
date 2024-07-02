@@ -81,49 +81,56 @@ public final class MiniGameHub extends JavaPlugin {
      */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.isOp()) {
+            sender.sendMessage("You don't have permission to use this command.");
+            return true;
+        }
+
         try {
             // Check if the command is "minigame"
             if (command.getName().equalsIgnoreCase("minigame")) {
-                // Check if the sender is an operator
-                if (!sender.isOp()) {
-                    sender.sendMessage("You don't have permission to use this command.");
+                if (args.length < 1) {
+                    sender.sendMessage("Usage: /minigame <start|setup> ...");
                     return true;
                 }
 
-                // Check if there are enough arguments
-                if (args.length < 2) {
-                    sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
-                    return false;
+                if (args[0].equalsIgnoreCase("setup")) {
+                    if (args.length < 3) {
+                        sender.sendMessage("Usage: /minigame setup <game> <world>");
+                        return true;
+                    }
+                    if (args[1].equalsIgnoreCase("survivalgames")) {
+                        String worldName = args[2];
+                        survivalGames.setupWorld(sender, worldName);
+                        sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
+                        return true;
+                    } else {
+                        sender.sendMessage("Unknown game for setup: " + args[1]);
+                        return true;
+                    }
+
+                    if(args[1].equalsIgnoreCase("deathswap")){
+                        deathSwap.setup(sender);
+                        sender.sendMessage("Entered setup mode for Death Swap");
+                        return true;
+                    }
                 }
 
-                // Handle the "start" subcommand
                 if (args[0].equalsIgnoreCase("start")) {
+                    if (args.length < 2) {
+                        sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
+                        return true;
+                    }
                     String game = args[1].toLowerCase();
                     String worldName = args.length > 2 ? args[2] : null;
-                    List<String> playerNames = args.length > 3 ? Arrays.asList(Arrays.copyOfRange(args, 3, args.length))
-                            : null;
+                    List<String> playerNames = args.length > 3 ? Arrays.asList(Arrays.copyOfRange(args, 3, args.length)) : null;
                     sender.sendMessage("Starting the " + game + " game...");
                     startGame(game, worldName, playerNames, sender);
                     return true;
                 }
-                // Handle the "setup" subcommand for SurvivalGames
-                else if (args[0].equalsIgnoreCase("setup")) {
-                    if (args[1].equalsIgnoreCase("survivalgames")) {
-                        String worldName = args.length > 2 ? args[2] : null;
-                        if (worldName != null) {
-                            survivalGames.setupWorld(sender, worldName);
-                            sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
-                        } else {
-                            sender.sendMessage("Usage: /minigame setup survivalgames <world>");
-                        }
-                        return true;
-                    }
-                }
-                // If the subcommand is not recognized, show usage message
-                else {
-                    sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
-                    return false;
-                }
+
+                sender.sendMessage("Unknown subcommand. Usage: /minigame <start|setup> ...");
+                return true;
             }
         } catch (Exception e) {
             sender.sendMessage("An error occurred while executing the command: " + e.getMessage());
@@ -132,6 +139,8 @@ public final class MiniGameHub extends JavaPlugin {
         }
         return false;
     }
+
+
 
     /**
      * Starts the specified game.
