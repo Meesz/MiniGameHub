@@ -61,32 +61,44 @@ public class SurvivalGames implements Listener {
         this.plugin = plugin;
         this.worldManager = worldManager;
         this.configManager = configManager;
+        this.worldSpawnPoints = new LinkedHashMap<>();
+        this.worldRespawnPoints = new LinkedHashMap<>();
+        this.deadPlayers = new ArrayList<>();
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
-        // Load spawn points from the configuration
+        // Load spawn points from the configuration if available
         if (configManager.getGameConfig("survivalgames").contains("worldSpawnPoints")) {
-            worldSpawnPoints = configManager
-                    .convertListToSpawnPoints(configManager.getGameConfig("survivalgames").getList("worldSpawnPoints"));
+            List<?> spawnPointsList = configManager.getGameConfig("survivalgames").getList("worldSpawnPoints");
+            if (spawnPointsList != null && !spawnPointsList.isEmpty()) {
+                worldSpawnPoints = configManager.convertListToSpawnPoints(spawnPointsList);
+            }
         }
+        // If no worldSpawnPoints found or if it's empty, do nothing
 
         // Load assigned worlds from the configuration
         if (configManager.getGameConfig("survivalgames").contains("assignedWorlds")) {
             List<String> assignedWorlds = configManager.getGameConfig("survivalgames").getStringList("assignedWorlds");
-            for (String worldName : assignedWorlds) {
-                MultiverseWorld world = worldManager.getMVWorld(worldName);
-                if (world != null) {
-                    // Perform any necessary setup for the world
-                    setupWorld(Bukkit.getConsoleSender(), worldName); // CHANGE TO CURRENT
-                                                                      // SENDER!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (assignedWorlds != null && !assignedWorlds.isEmpty()) {
+                for (String worldName : assignedWorlds) {
+                    MultiverseWorld world = worldManager.getMVWorld(worldName);
+                    if (world != null) {
+                        // Perform any necessary setup for the world
+                        // setupWorld(currentSender, worldName);
+                    }
                 }
+            } else {
+                plugin.getLogger().info("No assigned worlds found for Survival Games.");
             }
+        } else {
+            plugin.getLogger().info("No assigned worlds configuration found for Survival Games.");
         }
 
         // Load assigned respawn points from the configuration
         if (configManager.getGameConfig("survivalgames").contains("worldRespawnPoints")) {
-            worldRespawnPoints = configManager
-                    .convertListToSpawnPoints(
-                            configManager.getGameConfig("survivalgames").getList("worldRespawnPoints"));
+            List<?> respawnPointsList = configManager.getGameConfig("survivalgames").getList("worldRespawnPoints");
+            if (respawnPointsList != null && !respawnPointsList.isEmpty()) {
+                worldRespawnPoints = configManager.convertListToSpawnPoints(respawnPointsList);
+            }
         }
 
     }
@@ -227,6 +239,10 @@ public class SurvivalGames implements Listener {
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (!creatorModeEnabled)
+            return;
+
+        // Only if player is operator
+        if (!event.getPlayer().isOp())
             return;
 
         Player player = event.getPlayer();

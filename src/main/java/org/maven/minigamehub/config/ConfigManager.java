@@ -34,6 +34,8 @@ public class ConfigManager {
   public ConfigManager(JavaPlugin plugin) {
     this.plugin = plugin;
     this.gameConfigs = new HashMap<>();
+    this.worldSpawnPoints = new HashMap<>();
+
   }
 
   /**
@@ -64,6 +66,7 @@ public class ConfigManager {
       plugin.getLogger().log(Level.SEVERE, "Failed to setup configuration files.", e);
     }
   }
+
   /**
    * Ensures the configuration file for a specific game is created and loaded.
    *

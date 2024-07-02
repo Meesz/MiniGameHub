@@ -84,6 +84,12 @@ public final class MiniGameHub extends JavaPlugin {
         try {
             // Check if the command is "minigame"
             if (command.getName().equalsIgnoreCase("minigame")) {
+                // Check if the sender is an operator
+                if (!sender.isOp()) {
+                    sender.sendMessage("You don't have permission to use this command.");
+                    return true;
+                }
+
                 // Check if there are enough arguments
                 if (args.length < 2) {
                     sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
