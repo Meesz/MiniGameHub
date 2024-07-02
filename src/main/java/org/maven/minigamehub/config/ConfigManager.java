@@ -1,6 +1,7 @@
 package org.maven.minigamehub.config;
 
 import org.bukkit.Location;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
  * ConfigManager is responsible for managing the configuration files for the
@@ -26,7 +28,7 @@ public class ConfigManager {
 
   /**
    * Constructor for ConfigManager.
-   * 
+   *
    * @param plugin The JavaPlugin instance.
    */
   public ConfigManager(JavaPlugin plugin) {
@@ -39,27 +41,33 @@ public class ConfigManager {
    * Creates the config files if they do not exist.
    */
   public void setup() {
-    if (!plugin.getDataFolder().exists()) {
-      plugin.getDataFolder().mkdir();
+    try {
+      if (!plugin.getDataFolder().exists()) {
+        if (!plugin.getDataFolder().mkdir()) {
+          throw new IOException("Failed to create plugin data folder.");
+        }
+      }
+
+      File configFile = new File(plugin.getDataFolder(), "config.yml");
+
+      if (!configFile.exists()) {
+        plugin.saveResource("config.yml", false);
+      }
+
+      config = YamlConfiguration.loadConfiguration(configFile);
+
+      // Ensure all game-specific configs are created and loaded
+      createAndLoadGameConfig("survivalgames");
+      createAndLoadGameConfig("deathswap");
+      createAndLoadGameConfig("spleef");
+    } catch (IOException e) {
+      plugin.getLogger().log(Level.SEVERE, "Failed to setup configuration files.", e);
     }
-
-    File configFile = new File(plugin.getDataFolder(), "config.yml");
-
-    if (!configFile.exists()) {
-      plugin.saveResource("config.yml", false);
-    }
-
-    config = YamlConfiguration.loadConfiguration(configFile);
-
-    // Ensure all game-specific configs are created and loaded
-    createAndLoadGameConfig("survivalgames");
-    createAndLoadGameConfig("deathswap");
-    createAndLoadGameConfig("spleef");
   }
 
   /**
    * Ensures the configuration file for a specific game is created and loaded.
-   * 
+   *
    * @param gameName The name of the game.
    */
   private void createAndLoadGameConfig(String gameName) {
@@ -69,18 +77,23 @@ public class ConfigManager {
       plugin.saveResource(gameName + ".yml", false);
     }
 
-    FileConfiguration gameConfig = YamlConfiguration.loadConfiguration(gameConfigFile);
-    gameConfigs.put(gameName, gameConfig);
+    FileConfiguration gameConfig = new YamlConfiguration();
+    try {
+      gameConfig.load(gameConfigFile);
+      gameConfigs.put(gameName, gameConfig);
 
-    // Load specific configurations like spawn points for "survivalgames"
-    if (gameName.equals("survivalgames")) {
-      loadSurvivalGamesSpawnPoints(gameConfig);
+      // Load specific configurations like spawn points for "survivalgames"
+      if (gameName.equals("survivalgames")) {
+        loadSurvivalGamesSpawnPoints(gameConfig);
+      }
+    } catch (IOException | InvalidConfigurationException e) {
+      plugin.getLogger().log(Level.SEVERE, "Failed to load game configuration: " + gameName, e);
     }
   }
 
   /**
    * Loads spawn points for "survivalgames" from its configuration.
-   * 
+   *
    * @param gameConfig The configuration file for "survivalgames".
    */
   private void loadSurvivalGamesSpawnPoints(FileConfiguration gameConfig) {
@@ -88,30 +101,8 @@ public class ConfigManager {
   }
 
   /**
-   * Converts a List of Strings back to a Map of spawn points.
-   * 
-   * @param list The list of strings representing the spawn points.
-   * @return A map of spawn points.
-   */
-  private Map<String, List<Location>> convertListToSpawnPoints(List<?> list) {
-    Map<String, List<Location>> spawnPoints = new HashMap<>();
-    for (Object obj : list) {
-      String[] parts = ((String) obj).split(",");
-      if (parts.length == 4) {
-        String worldName = parts[0];
-        double x = Double.parseDouble(parts[1]);
-        double y = Double.parseDouble(parts[2]);
-        double z = Double.parseDouble(parts[3]);
-        Location location = new Location(plugin.getServer().getWorld(worldName), x, y, z);
-        spawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
-      }
-    }
-    return spawnPoints;
-  }
-
-  /**
    * Gets the main configuration.
-   * 
+   *
    * @return The main configuration.
    */
   public FileConfiguration getConfig() {
@@ -120,7 +111,7 @@ public class ConfigManager {
 
   /**
    * Gets the configuration for a specific game.
-   * 
+   *
    * @param gameName The name of the game.
    * @return The configuration for the game.
    */
@@ -135,13 +126,13 @@ public class ConfigManager {
     try {
       config.save(new File(plugin.getDataFolder(), "config.yml"));
     } catch (IOException e) {
-      plugin.getLogger().severe("Could not save config.yml: " + e.getMessage());
+      plugin.getLogger().log(Level.SEVERE, "Could not save config.yml", e);
     }
   }
 
   /**
    * Saves the configuration for a specific game to the file.
-   * 
+   *
    * @param gameName The name of the game.
    */
   public void saveGameConfig(String gameName) {
@@ -151,7 +142,38 @@ public class ConfigManager {
         gameConfig.save(new File(plugin.getDataFolder(), gameName + ".yml"));
       }
     } catch (IOException e) {
-      plugin.getLogger().severe("Could not save " + gameName + ".yml: " + e.getMessage());
+      plugin.getLogger().log(Level.SEVERE, "Could not save " + gameName + ".yml", e);
     }
   }
+
+  /**
+   * Converts a list of strings to a map of world names to spawn points.
+   *
+   * @param list The list of strings representing spawn points.
+   * @return A map of world names to lists of locations.
+   */
+  public Map<String, List<Location>> convertListToSpawnPoints(List<?> list) {
+    Map<String, List<Location>> spawnPoints = new HashMap<>();
+    if (list != null) {
+      for (Object obj : list) {
+        if (obj instanceof String) {
+          String[] parts = ((String) obj).split(",");
+          if (parts.length == 4) {
+            String worldName = parts[0];
+            try {
+              double x = Double.parseDouble(parts[1]);
+              double y = Double.parseDouble(parts[2]);
+              double z = Double.parseDouble(parts[3]);
+              Location location = new Location(plugin.getServer().getWorld(worldName), x, y, z);
+              spawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
+            } catch (NumberFormatException e) {
+              plugin.getLogger().log(Level.WARNING, "Invalid spawn point format: " + obj, e);
+            }
+          }
+        }
+      }
+    }
+    return spawnPoints;
+  }
+
 }

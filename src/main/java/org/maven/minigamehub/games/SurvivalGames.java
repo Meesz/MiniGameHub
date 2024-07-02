@@ -13,15 +13,18 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.maven.minigamehub.config.ConfigManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,25 +33,51 @@ import java.util.Map;
  * Implements the Listener interface to handle various game events.
  */
 public class SurvivalGames implements Listener {
+    private static final long GAME_START_DELAY = 200L; // 10 seconds delay (20 ticks per second)
+    private static final long SLOWNESS_EFFECT_DURATION = 200L; // Adjust time as needed
+    private static final PotionEffectType SLOWNESS_EFFECT_TYPE = PotionEffectType.SLOWNESS;
+    private static final int SLOWNESS_EFFECT_AMPLIFIER = 255;
+
     private final JavaPlugin plugin;
     private final MVWorldManager worldManager;
     private final List<Player> players = new ArrayList<>();
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
-    private final Map<String, List<Location>> worldSpawnPoints = new HashMap<>();
+    private Map<String, List<Location>> worldSpawnPoints = new LinkedHashMap<>();
     private boolean gameRunning = false;
     private CommandSender currentSender = null;
     private boolean creatorModeEnabled = false;
+    private final ConfigManager configManager;
 
     /**
      * Constructor for the SurvivalGames class.
      *
-     * @param plugin        The JavaPlugin instance.
-     * @param worldManager  The MVWorldManager instance.
+     * @param plugin       The JavaPlugin instance.
+     * @param worldManager The MVWorldManager instance.
      */
-    public SurvivalGames(JavaPlugin plugin, MVWorldManager worldManager) {
+    public SurvivalGames(JavaPlugin plugin, MVWorldManager worldManager, ConfigManager configManager) {
         this.plugin = plugin;
         this.worldManager = worldManager;
+        this.configManager = configManager;
         Bukkit.getPluginManager().registerEvents(this, plugin);
+
+        // Load spawn points from the configuration
+        if (configManager.getGameConfig("survivalgames").contains("worldSpawnPoints")) {
+            worldSpawnPoints = configManager
+                    .convertListToSpawnPoints(configManager.getGameConfig("survivalgames").getList("worldSpawnPoints"));
+        }
+
+        // Load assigned worlds from the configuration
+        if (configManager.getGameConfig("survivalgames").contains("assignedWorlds")) {
+            List<String> assignedWorlds = configManager.getGameConfig("survivalgames").getStringList("assignedWorlds");
+            for (String worldName : assignedWorlds) {
+                MultiverseWorld world = worldManager.getMVWorld(worldName);
+                if (world != null) {
+                    // Perform any necessary setup for the world
+                    setupWorld(Bukkit.getConsoleSender(), worldName); // CHANGE TO CURRENT
+                                                                      // SENDER!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                }
+            }
+        }
     }
 
     /**
@@ -60,7 +89,7 @@ public class SurvivalGames implements Listener {
      */
     public void start(CommandSender sender, String worldName, List<String> playerNames) {
         currentSender = sender;
-        if (gameRunning) {
+        if (isGameRunning()) {
             sender.sendMessage("The game is already running.");
             return;
         }
@@ -78,7 +107,7 @@ public class SurvivalGames implements Listener {
         }
 
         for (String name : playerNames) {
-            Player player = Bukkit.getPlayerExact(name);
+            Player player = Bukkit.getPlayer(name);
             if (player != null && player.isOnline()) {
                 players.add(player);
                 // Save player's inventory
@@ -103,22 +132,29 @@ public class SurvivalGames implements Listener {
             public void run() {
                 for (int i = 0; i < players.size(); i++) {
                     Player player = players.get(i);
-                    player.teleport(spawnPoints.get(i));
-                    player.setGameMode(GameMode.ADVENTURE);
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 1000000, 255, false, false));
-                    player.sendMessage("Survival games has started!");
-                    // Give initial items, etc.
+                    if (player != null) {
+                        player.teleport(spawnPoints.get(i));
+                        player.setGameMode(GameMode.ADVENTURE);
+                        player.addPotionEffect(new PotionEffect(SLOWNESS_EFFECT_TYPE, 1000000,
+                                SLOWNESS_EFFECT_AMPLIFIER, false, false));
+                        player.sendMessage("Survival games has started!");
+                        // Give initial items, etc.
+                    }
                 }
             }
-        }.runTaskLater(plugin, 200L); // 10 seconds delay (20 ticks per second)
+        }.runTaskLater(plugin, GAME_START_DELAY);
 
         // Schedule a task to remove the slowness effect after a delay
         new BukkitRunnable() {
             public void run() {
-                players.forEach(player -> player.removePotionEffect(PotionEffectType.SLOWNESS));
+                players.forEach(player -> {
+                    if (player != null) {
+                        player.removePotionEffect(SLOWNESS_EFFECT_TYPE);
+                    }
+                });
                 Bukkit.broadcastMessage("Survival Games has started!");
             }
-        }.runTaskLater(plugin, 200L); // Adjust time as needed
+        }.runTaskLater(plugin, SLOWNESS_EFFECT_DURATION);
     }
 
     /**
@@ -127,24 +163,35 @@ public class SurvivalGames implements Listener {
      * @param sender The sender of the command.
      */
     public void stop(CommandSender sender) {
-        if (!gameRunning) {
+        if (!isGameRunning()) {
             sender.sendMessage("No game is currently running.");
             return;
         }
 
         for (Player player : players) {
-            ItemStack[] savedInventory = playerInventories.get(player);
-            if (savedInventory != null) {
-                player.getInventory().setContents(savedInventory);
+            if (player != null) {
+                try {
+                    ItemStack[] savedInventory = playerInventories.get(player);
+                    if (savedInventory != null) {
+                        player.getInventory().setContents(savedInventory);
+                    }
+                    player.sendMessage("Survival games has ended!");
+                    // Teleport players to a lobby or predefined location
+                } catch (Exception e) {
+                    // Handle any exceptions that may occur while restoring player inventories
+                    plugin.getLogger().warning("Failed to restore inventory for player " + player.getName());
+                    e.printStackTrace();
+                }
             }
-            player.sendMessage("Survival games has ended!");
-            // Teleport players to a lobby or predefined location
         }
 
         players.clear();
         playerInventories.clear();
         gameRunning = false;
         sender.sendMessage("Survival games has been stopped.");
+
+        // Save spawn points to the configuration
+        saveSpawnPoints();
     }
 
     /**
@@ -165,17 +212,24 @@ public class SurvivalGames implements Listener {
      */
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
+        if (!creatorModeEnabled)
+            return;
+
         Player player = event.getPlayer();
-        if (player.getInventory().getItemInMainHand().getType() == Material.STICK) {
+        if (player != null && player.getInventory().getItemInMainHand().getType() == Material.STICK) {
             Location location = event.getClickedBlock().getLocation();
             String worldName = location.getWorld().getName();
             worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
             player.sendMessage("Spawn point set at " + location);
+            saveSpawnPoints();
         } else if (creatorModeEnabled && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Location location = event.getClickedBlock().getLocation();
             String worldName = location.getWorld().getName();
             worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
-            event.getPlayer().sendMessage("Spawn point set at " + location);
+            if (player != null) {
+                player.sendMessage("Spawn point set at " + location);
+            }
+            saveSpawnPoints();
         }
     }
 
@@ -186,7 +240,8 @@ public class SurvivalGames implements Listener {
      */
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
-        if (players.contains(event.getPlayer())) {
+        Player player = event.getPlayer();
+        if (player != null && players.contains(player)) {
             event.setCancelled(true);
         }
     }
@@ -199,10 +254,22 @@ public class SurvivalGames implements Listener {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
-        if (players.contains(player)) {
+        if (player != null && isPlayerInGame(player)) {
             player.setGameMode(GameMode.SPECTATOR);
             players.remove(player);
             checkForWinner();
+        }
+    }
+
+    /**
+     * Handles player respawns during the game.
+     *
+     * @param player The player who respawned.
+     */
+    public void handlePlayerRespawn(Player player) {
+        if (player != null && isPlayerInGame(player)) {
+            // Teleport the player to a respawn location or perform any necessary actions
+            // Update the game state or player status accordingly
         }
     }
 
@@ -213,8 +280,89 @@ public class SurvivalGames implements Listener {
     private void checkForWinner() {
         if (players.size() == 1) {
             Player winner = players.get(0);
-            Bukkit.broadcastMessage(winner.getName() + " has won the Survival Games!");
-            stop(currentSender); // Implement stop method to handle post-game logic
+            if (winner != null) {
+                Bukkit.broadcastMessage(winner.getName() + " has won the Survival Games!");
+                stop(currentSender); // Implement stop method to handle post-game logic
+            }
         }
+    }
+
+    /**
+     * Handles player disconnections during the game.
+     *
+     * @param player The player who disconnected.
+     */
+    public void handlePlayerDisconnect(Player player) {
+        if (player != null && isPlayerInGame(player)) {
+            players.remove(player);
+            Bukkit.broadcastMessage(player.getName() + " has disconnected from the game.");
+
+            // Restore the player's inventory
+            try {
+                ItemStack[] savedInventory = playerInventories.remove(player);
+                if (savedInventory != null) {
+                    player.getInventory().setContents(savedInventory);
+                }
+            } catch (Exception e) {
+                // Handle any exceptions that may occur while restoring player inventories
+                plugin.getLogger().warning("Failed to restore inventory for player " + player.getName());
+                e.printStackTrace();
+            }
+
+            checkForWinner();
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        handlePlayerDisconnect(player);
+    }
+
+    /**
+     * Checks if a player is in the game.
+     *
+     * @param player The player to check.
+     * @return true if the player is in the game, false otherwise.
+     */
+    private boolean isPlayerInGame(Player player) {
+        return player != null && players.contains(player);
+    }
+
+    /**
+     * Checks if a game is already running.
+     *
+     * @return true if a game is running, false otherwise.
+     */
+    private boolean isGameRunning() {
+        return gameRunning;
+    }
+
+    /**
+     * Saves spawn points to the configuration file.
+     */
+    private void saveSpawnPoints() {
+        List<String> spawnPointsList = convertSpawnPointsToList(worldSpawnPoints);
+        configManager.getGameConfig("survivalgames").set("worldSpawnPoints", spawnPointsList);
+        configManager.saveGameConfig("survivalgames");
+    }
+
+    /**
+     * Converts spawn points from Map<String, List<Location>> to List<String> for
+     * saving to the configuration.
+     *
+     * @param spawnPoints The spawn points map.
+     * @return The converted list of spawn points.
+     */
+    private List<String> convertSpawnPointsToList(Map<String, List<Location>> spawnPoints) {
+        List<String> spawnPointsList = new ArrayList<>();
+        for (Map.Entry<String, List<Location>> entry : spawnPoints.entrySet()) {
+            String worldName = entry.getKey();
+            for (Location location : entry.getValue()) {
+                String spawnPoint = worldName + "," + location.getX() + "," + location.getY() + "," + location.getZ();
+                spawnPointsList.add(spawnPoint);
+            }
+        }
+        return spawnPointsList;
     }
 }

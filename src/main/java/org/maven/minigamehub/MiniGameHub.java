@@ -30,28 +30,35 @@ public final class MiniGameHub extends JavaPlugin {
      */
     @Override
     public void onEnable() {
-        // Initialize the configuration manager and set up the configuration files
-        configManager = new ConfigManager(this);
-        configManager.setup();
+        try {
+            // Initialize the configuration manager and set up the configuration files
+            configManager = new ConfigManager(this);
+            configManager.setup();
 
-        // Get the Multiverse-Core plugin to manage worlds
-        MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
-        if (core != null) {
-            MVWorldManager worldManager = core.getMVWorldManager();
-            // Initialize the SurvivalGames instance with the world manager
-            survivalGames = new SurvivalGames(this, worldManager);
-        } else {
-            // Log a warning if Multiverse-Core is not found
-            getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
-            survivalGames = null;
+            // Get the Multiverse-Core plugin to manage worlds
+            MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
+            if (core != null) {
+                MVWorldManager worldManager = core.getMVWorldManager();
+                // Initialize the SurvivalGames instance with the world manager
+                survivalGames = new SurvivalGames(this, worldManager, configManager);
+            } else {
+                // Log a warning if Multiverse-Core is not found
+                getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
+                survivalGames = null;
+            }
+
+            // Initialize other game instances
+            deathSwap = new DeathSwap(this, configManager);
+            spleef = new Spleef();
+
+            // Log that the plugin has been enabled
+            getLogger().info("MiniGameHub has been enabled!");
+        } catch (Exception e) {
+            getLogger().severe("An error occurred while enabling MiniGameHub: " + e.getMessage());
+            e.printStackTrace();
+            // Disable the plugin if an error occurs during initialization
+            getServer().getPluginManager().disablePlugin(this);
         }
-
-        // Initialize other game instances
-        deathSwap = new DeathSwap(this, configManager);
-        spleef = new Spleef();
-
-        // Log that the plugin has been enabled
-        getLogger().info("MiniGameHub has been enabled!");
     }
 
     /**
@@ -74,48 +81,48 @@ public final class MiniGameHub extends JavaPlugin {
      */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // Check if the command is "minigame"
-        if (command.getName().equalsIgnoreCase("minigame")) {
-            // Check if there are enough arguments
-            if (args.length < 2) {
-                sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
-                return false;
-            }
-
-            // Handle the "start" subcommand
-            if (args[0].equalsIgnoreCase("start")) {
-                String game = args[1].toLowerCase();
-                String worldName = args.length > 2 ? args[2] : null;
-                List<String> playerNames = args.length > 3 ? Arrays.asList(Arrays.copyOfRange(args, 3, args.length))
-                        : null;
-                sender.sendMessage("Starting the " + game + " game...");
-                try {
-                    startGame(game, worldName, playerNames, sender);
-                } catch (Exception e) {
-                    sender.sendMessage("An error occurred while starting the game: " + e.getMessage());
-                    getLogger().severe("Error starting game " + game + ": " + e.getMessage());
-                    e.printStackTrace();
+        try {
+            // Check if the command is "minigame"
+            if (command.getName().equalsIgnoreCase("minigame")) {
+                // Check if there are enough arguments
+                if (args.length < 2) {
+                    sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
+                    return false;
                 }
-                return true;
-            } 
-            // Handle the "setup" subcommand for SurvivalGames
-            else if (args[0].equalsIgnoreCase("setup")) {
-                if (args[1].equalsIgnoreCase("survivalgames")) {
+
+                // Handle the "start" subcommand
+                if (args[0].equalsIgnoreCase("start")) {
+                    String game = args[1].toLowerCase();
                     String worldName = args.length > 2 ? args[2] : null;
-                    if (worldName != null) {
-                        survivalGames.setupWorld(sender, worldName);
-                        sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
-                    } else {
-                        sender.sendMessage("Usage: /minigame setup survivalgames <world>");
-                    }
+                    List<String> playerNames = args.length > 3 ? Arrays.asList(Arrays.copyOfRange(args, 3, args.length))
+                            : null;
+                    sender.sendMessage("Starting the " + game + " game...");
+                    startGame(game, worldName, playerNames, sender);
                     return true;
                 }
-            } 
-            // If the subcommand is not recognized, show usage message
-            else {
-                sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
-                return false;
+                // Handle the "setup" subcommand for SurvivalGames
+                else if (args[0].equalsIgnoreCase("setup")) {
+                    if (args[1].equalsIgnoreCase("survivalgames")) {
+                        String worldName = args.length > 2 ? args[2] : null;
+                        if (worldName != null) {
+                            survivalGames.setupWorld(sender, worldName);
+                            sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
+                        } else {
+                            sender.sendMessage("Usage: /minigame setup survivalgames <world>");
+                        }
+                        return true;
+                    }
+                }
+                // If the subcommand is not recognized, show usage message
+                else {
+                    sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
+                    return false;
+                }
             }
+        } catch (Exception e) {
+            sender.sendMessage("An error occurred while executing the command: " + e.getMessage());
+            getLogger().severe("Error executing command: " + e.getMessage());
+            e.printStackTrace();
         }
         return false;
     }
@@ -129,32 +136,38 @@ public final class MiniGameHub extends JavaPlugin {
      * @param sender      The sender of the command.
      */
     private void startGame(String game, String worldName, List<String> playerNames, CommandSender sender) {
-        switch (game) {
-            case "hungergames":
-            case "survivalgames":
-                if (survivalGames != null) {
-                    if (worldName == null || playerNames == null) {
-                        sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
+        try {
+            switch (game) {
+                case "hungergames":
+                case "survivalgames":
+                    if (survivalGames != null) {
+                        if (worldName == null || playerNames == null) {
+                            sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
+                            return;
+                        }
+                        survivalGames.start(sender, worldName, playerNames);
+                    } else {
+                        sender.sendMessage("SurvivalGames is not available. Make sure Multiverse-Core is installed.");
+                    }
+                    break;
+                case "spleef":
+                    spleef.start(sender);
+                    break;
+                case "deathswap":
+                    if (playerNames == null || playerNames.size() < 2) {
+                        sender.sendMessage("Usage: /minigame start deathswap <player1> <player2>");
                         return;
                     }
-                    survivalGames.start(sender, worldName, playerNames);
-                } else {
-                    sender.sendMessage("SurvivalGames is not available. Make sure Multiverse-Core is installed.");
-                }
-                break;
-            case "spleef":
-                spleef.start(sender);
-                break;
-            case "deathswap":
-                if (playerNames == null || playerNames.size() < 2) {
-                    sender.sendMessage("Usage: /minigame start deathswap <player1> <player2>");
-                    return;
-                }
-                deathSwap.start(sender, playerNames);
-                break;
-            default:
-                sender.sendMessage("Unknown game: " + game);
-                break;
+                    deathSwap.start(sender, playerNames);
+                    break;
+                default:
+                    sender.sendMessage("Unknown game: " + game);
+                    break;
+            }
+        } catch (Exception e) {
+            sender.sendMessage("An error occurred while starting the game: " + e.getMessage());
+            getLogger().severe("Error starting game " + game + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
