@@ -6,57 +6,73 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.logging.Level;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ConfigManager {
-  private final JavaPlugin plugin;
-  private File configFile;
-  private FileConfiguration config;
+    private final JavaPlugin plugin;
+    private FileConfiguration config;
+    private final Map<String, FileConfiguration> gameConfigs;
 
-  public ConfigManager(JavaPlugin plugin) {
-    this.plugin = plugin;
-  }
-
-  public void setup() {
-    if (!plugin.getDataFolder().exists()) {
-      plugin.getDataFolder().mkdirs();
+    public ConfigManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+        this.gameConfigs = new HashMap<>();
     }
 
-    configFile = new File(plugin.getDataFolder(), "config.yml");
-
-    if (!configFile.exists()) {
-      try {
-        configFile.createNewFile();
-        InputStream defaultConfigStream = plugin.getResource("config.yml");
-        if (defaultConfigStream != null) {
-          YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultConfigStream));
-          defaultConfig.save(configFile);
-        } else {
-          plugin.getLogger().warning("Default config.yml not found in plugin jar!");
+    public void setup() {
+        if (!plugin.getDataFolder().exists()) {
+            plugin.getDataFolder().mkdir();
         }
-      } catch (IOException e) {
-        plugin.getLogger().log(Level.SEVERE, "Could not create config file", e);
-      }
+
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+
+        if (!configFile.exists()) {
+            plugin.saveResource("config.yml", false);
+        }
+
+        config = YamlConfiguration.loadConfiguration(configFile);
+
+        // Load game-specific configs
+        loadGameConfig("survivalgames");
+        loadGameConfig("deathswap");
+        loadGameConfig("spleef");
     }
 
-    config = YamlConfiguration.loadConfiguration(configFile);
-  }
+    private void loadGameConfig(String gameName) {
+        File gameConfigFile = new File(plugin.getDataFolder(), gameName + ".yml");
 
-  public FileConfiguration getConfig() {
-    return config;
-  }
+        if (!gameConfigFile.exists()) {
+            plugin.saveResource(gameName + ".yml", false);
+        }
 
-  public void saveConfig() {
-    try {
-      config.save(configFile);
-    } catch (IOException e) {
-      plugin.getLogger().log(Level.SEVERE, "Could not save config to " + configFile, e);
+        FileConfiguration gameConfig = YamlConfiguration.loadConfiguration(gameConfigFile);
+        gameConfigs.put(gameName, gameConfig);
     }
-  }
 
-  public void reloadConfig() {
-    config = YamlConfiguration.loadConfiguration(configFile);
-  }
+    public FileConfiguration getConfig() {
+        return config;
+    }
+
+    public FileConfiguration getGameConfig(String gameName) {
+        return gameConfigs.get(gameName);
+    }
+
+    public void saveConfig() {
+        try {
+            config.save(new File(plugin.getDataFolder(), "config.yml"));
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save config.yml: " + e.getMessage());
+        }
+    }
+
+    public void saveGameConfig(String gameName) {
+        try {
+            FileConfiguration gameConfig = gameConfigs.get(gameName);
+            if (gameConfig != null) {
+                gameConfig.save(new File(plugin.getDataFolder(), gameName + ".yml"));
+            }
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save " + gameName + ".yml: " + e.getMessage());
+        }
+    }
 }

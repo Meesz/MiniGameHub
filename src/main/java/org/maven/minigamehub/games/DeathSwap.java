@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.maven.minigamehub.config.ConfigManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
  */
 public class DeathSwap {
     private final JavaPlugin plugin;
+    private final ConfigManager configManager;
     private final List<Player> players;
     private final int swapInterval;
     private BukkitRunnable swapTask;
@@ -28,11 +30,13 @@ public class DeathSwap {
      * Constructor for the DeathSwap class.
      *
      * @param plugin The JavaPlugin instance.
+     * @param configManager The ConfigManager instance.
      */
-    public DeathSwap(JavaPlugin plugin) {
+    public DeathSwap(JavaPlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
+        this.configManager = configManager;
         this.players = new ArrayList<>();
-        this.swapInterval = plugin.getConfig().getInt("deathswap.swap_interval", 180);
+        this.swapInterval = configManager.getGameConfig("deathswap").getInt("swap_interval", 180);
     }
 
     /**

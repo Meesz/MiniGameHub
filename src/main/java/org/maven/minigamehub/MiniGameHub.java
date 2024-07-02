@@ -21,6 +21,8 @@ import com.onarandombox.MultiverseCore.MultiverseCore;
 public final class MiniGameHub extends JavaPlugin {
     private ConfigManager configManager;
     private SurvivalGames survivalGames;
+    private DeathSwap deathSwap;
+    private Spleef spleef;
 
     @Override
     public void onEnable() {
@@ -34,6 +36,8 @@ public final class MiniGameHub extends JavaPlugin {
             getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
             survivalGames = null;
         }
+        deathSwap = new DeathSwap(this, configManager);
+        spleef = new Spleef();
         getLogger().info("MiniGameHub has been enabled!");
     }
 
@@ -52,10 +56,17 @@ public final class MiniGameHub extends JavaPlugin {
 
             if (args[0].equalsIgnoreCase("start")) {
                 String game = args[1].toLowerCase();
-                String worldName = args[2];
-                List<String> playerNames = Arrays.asList(Arrays.copyOfRange(args, 3, args.length));
+                String worldName = args.length > 2 ? args[2] : null;
+                List<String> playerNames = args.length > 3 ? Arrays.asList(Arrays.copyOfRange(args, 3, args.length))
+                        : null;
                 sender.sendMessage("Starting the " + game + " game...");
-                startGame(game, worldName, playerNames, sender);
+                try {
+                    startGame(game, worldName, playerNames, sender);
+                } catch (Exception e) {
+                    sender.sendMessage("An error occurred while starting the game: " + e.getMessage());
+                    getLogger().severe("Error starting game " + game + ": " + e.getMessage());
+                    e.printStackTrace();
+                }
                 return true;
             } else {
                 sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
@@ -78,17 +89,24 @@ public final class MiniGameHub extends JavaPlugin {
             case "hungergames":
             case "survivalgames":
                 if (survivalGames != null) {
+                    if (worldName == null || playerNames == null) {
+                        sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
+                        return;
+                    }
                     survivalGames.start(sender, worldName, playerNames);
                 } else {
                     sender.sendMessage("SurvivalGames is not available. Make sure Multiverse-Core is installed.");
                 }
                 break;
             case "spleef":
-                new Spleef().start(sender);
+                spleef.start(sender);
                 break;
             case "deathswap":
-                int swapInterval = configManager.getConfig().getInt("deathswap.swap_interval", 180);
-                new DeathSwap(this).start(sender, playerNames);
+                if (playerNames == null || playerNames.size() < 2) {
+                    sender.sendMessage("Usage: /minigame start deathswap <player1> <player2>");
+                    return;
+                }
+                deathSwap.start(sender, playerNames);
                 break;
             default:
                 sender.sendMessage("Unknown game: " + game);
