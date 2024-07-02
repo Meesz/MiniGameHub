@@ -14,6 +14,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -43,6 +44,8 @@ public class SurvivalGames implements Listener {
     private final List<Player> players = new ArrayList<>();
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
     private Map<String, List<Location>> worldSpawnPoints = new LinkedHashMap<>();
+    private Map<String, List<Location>> worldRespawnPoints = new LinkedHashMap<>();
+    private List<Player> deadPlayers = new ArrayList<>();
     private boolean gameRunning = false;
     private CommandSender currentSender = null;
     private boolean creatorModeEnabled = false;
@@ -78,6 +81,14 @@ public class SurvivalGames implements Listener {
                 }
             }
         }
+
+        // Load assigned respawn points from the configuration
+        if (configManager.getGameConfig("survivalgames").contains("worldRespawnPoints")) {
+            worldRespawnPoints = configManager
+                    .convertListToSpawnPoints(
+                            configManager.getGameConfig("survivalgames").getList("worldRespawnPoints"));
+        }
+
     }
 
     /**
@@ -106,10 +117,11 @@ public class SurvivalGames implements Listener {
             return;
         }
 
+        List<Player> validPlayers = new ArrayList<>();
         for (String name : playerNames) {
             Player player = Bukkit.getPlayer(name);
             if (player != null && player.isOnline()) {
-                players.add(player);
+                validPlayers.add(player);
                 // Save player's inventory
                 playerInventories.put(player, player.getInventory().getContents());
                 player.getInventory().clear();
@@ -118,11 +130,13 @@ public class SurvivalGames implements Listener {
             }
         }
 
-        if (players.size() < 2) {
+        if (validPlayers.size() < 2) {
             sender.sendMessage("Not enough players to start the game.");
+            players.clear(); // Clear the players list if the game fails to start
             return;
         }
 
+        players.addAll(validPlayers);
         gameRunning = true;
         sender.sendMessage("Survival games is starting in 10 seconds!");
 
@@ -216,7 +230,7 @@ public class SurvivalGames implements Listener {
             return;
 
         Player player = event.getPlayer();
-        if (player != null && player.getInventory().getItemInMainHand().getType() == Material.STICK) {
+        if (player.getInventory().getItemInMainHand().getType() == Material.STICK) {
             Location location = event.getClickedBlock().getLocation();
             String worldName = location.getWorld().getName();
             worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
@@ -226,9 +240,7 @@ public class SurvivalGames implements Listener {
             Location location = event.getClickedBlock().getLocation();
             String worldName = location.getWorld().getName();
             worldSpawnPoints.computeIfAbsent(worldName, k -> new ArrayList<>()).add(location);
-            if (player != null) {
-                player.sendMessage("Spawn point set at " + location);
-            }
+            player.sendMessage("Spawn point set at " + location);
             saveSpawnPoints();
         }
     }
@@ -241,8 +253,15 @@ public class SurvivalGames implements Listener {
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
-        if (player != null && players.contains(player)) {
+        if (players.contains(player)) {
             event.setCancelled(true);
+        }
+    }
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        if (deadPlayers.remove(player)) {
+            respawnPlayer(player);
         }
     }
 
@@ -254,11 +273,12 @@ public class SurvivalGames implements Listener {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
-        if (player != null && isPlayerInGame(player)) {
+        if (isPlayerInGame(player)) {
             player.setGameMode(GameMode.SPECTATOR);
             players.remove(player);
             checkForWinner();
         }
+        deadPlayers.add(player);
     }
 
     /**
@@ -266,23 +286,11 @@ public class SurvivalGames implements Listener {
      *
      * @param player The player who respawned.
      */
-    public void handlePlayerRespawn(Player player) {
-        if (player != null && isPlayerInGame(player)) {
-            // Teleport the player to a respawn location or perform any necessary actions
-            // Update the game state or player status accordingly
-        }
-    }
-
-    /**
-     * Checks if there is a winner in the SurvivalGames game.
-     * If there is only one player left, they are declared the winner.
-     */
-    private void checkForWinner() {
-        if (players.size() == 1) {
-            Player winner = players.get(0);
-            if (winner != null) {
-                Bukkit.broadcastMessage(winner.getName() + " has won the Survival Games!");
-                stop(currentSender); // Implement stop method to handle post-game logic
+    private void respawnPlayer(Player player) {
+        if (isPlayerInGame(player)) {
+            List<Location> respawnPoints = worldRespawnPoints.get(player.getWorld().getName());
+            if (respawnPoints != null && !respawnPoints.isEmpty()) {
+                player.teleport(respawnPoints.get(0));
             }
         }
     }
@@ -317,6 +325,24 @@ public class SurvivalGames implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         handlePlayerDisconnect(player);
+    }
+
+    /**
+     * Checks if there is a winner in the SurvivalGames game.
+     * If there is only one player left, they are declared the winner.
+     * If there are no players left, the game is stopped.
+     */
+    private void checkForWinner() {
+        if (players.size() == 1) {
+            Player winner = players.get(0);
+            if (winner != null) {
+                Bukkit.broadcastMessage(winner.getName() + " has won the Survival Games!");
+                stop(currentSender); // Implement stop method to handle post-game logic
+            }
+        } else if (players.isEmpty()) {
+            Bukkit.broadcastMessage("No players left in the game. The game has ended.");
+            stop(currentSender); // Implement stop method to handle post-game logic
+        }
     }
 
     /**

@@ -99,7 +99,7 @@ public class DeathSwap implements Listener {
                 swapPlayers();
             }
         };
-        swapTimerTask.runTaskTimer(plugin, swapInterval * TICKS_PER_SECOND, swapInterval * TICKS_PER_SECOND);
+        swapTimerTask.runTaskTimer(plugin, (long) swapInterval * TICKS_PER_SECOND, (long) swapInterval * TICKS_PER_SECOND);
     }
 
     /**
@@ -193,12 +193,13 @@ public class DeathSwap implements Listener {
             players.remove(player);
             Bukkit.broadcastMessage(BROADCAST_PREFIX + player.getName() + " has died.");
 
+            if (players.size() == 1) {
+                Player winner = players.iterator().next();
+                Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
+            }
+
             if (players.size() < 2) {
                 stopGame();
-                if (players.size() == 1) {
-                    Player winner = players.iterator().next();
-                    Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
-                }
             }
         }
     }
@@ -219,12 +220,13 @@ public class DeathSwap implements Listener {
                 player.getInventory().setContents(savedInventory);
             }
 
+            if (players.size() == 1) {
+                Player winner = players.iterator().next();
+                Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
+            }
+
             if (players.size() < 2) {
                 stopGame();
-                if (players.size() == 1) {
-                    Player winner = players.iterator().next();
-                    Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
-                }
             }
         }
     }

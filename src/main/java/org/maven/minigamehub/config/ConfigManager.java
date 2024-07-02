@@ -64,7 +64,6 @@ public class ConfigManager {
       plugin.getLogger().log(Level.SEVERE, "Failed to setup configuration files.", e);
     }
   }
-
   /**
    * Ensures the configuration file for a specific game is created and loaded.
    *
@@ -97,7 +96,10 @@ public class ConfigManager {
    * @param gameConfig The configuration file for "survivalgames".
    */
   private void loadSurvivalGamesSpawnPoints(FileConfiguration gameConfig) {
-    worldSpawnPoints = convertListToSpawnPoints(gameConfig.getList("worldSpawnPoints"));
+    Map<String, List<Location>> loadedSpawnPoints = convertListToSpawnPoints(gameConfig.getList("worldSpawnPoints"));
+    if (loadedSpawnPoints != null) {
+      worldSpawnPoints.putAll(loadedSpawnPoints);
+    }
   }
 
   /**
@@ -149,7 +151,7 @@ public class ConfigManager {
   /**
    * Converts a list of strings to a map of world names to spawn points.
    *
-   * @param list The list of strings representing spawn points.
+   * @param list The list of objects representing spawn points.
    * @return A map of world names to lists of locations.
    */
   public Map<String, List<Location>> convertListToSpawnPoints(List<?> list) {
@@ -169,7 +171,11 @@ public class ConfigManager {
             } catch (NumberFormatException e) {
               plugin.getLogger().log(Level.WARNING, "Invalid spawn point format: " + obj, e);
             }
+          } else {
+            plugin.getLogger().log(Level.WARNING, "Invalid spawn point format: " + obj);
           }
+        } else {
+          plugin.getLogger().log(Level.WARNING, "Invalid spawn point type: " + obj.getClass().getName());
         }
       }
     }
