@@ -12,6 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.maven.minigamehub.config.ConfigManager;
+import org.maven.minigamehub.world.WorldManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +31,7 @@ public class DeathSwap implements Listener {
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
+    private final WorldManager worldManager;
     private final Set<Player> players;
     private final int swapInterval;
     private BukkitRunnable swapTimerTask;
@@ -40,10 +42,12 @@ public class DeathSwap implements Listener {
      *
      * @param plugin        The JavaPlugin instance.
      * @param configManager The ConfigManager instance.
+     * @param worldManager  The WorldManager instance.
      */
-    public DeathSwap(JavaPlugin plugin, ConfigManager configManager) {
+    public DeathSwap(JavaPlugin plugin, ConfigManager configManager, WorldManager worldManager) {
         this.plugin = plugin;
         this.configManager = configManager;
+        this.worldManager = worldManager;
         this.players = new HashSet<>();
         this.swapInterval = configManager.getGameConfig("deathswap").getInt("swap_interval", 180);
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -56,32 +60,58 @@ public class DeathSwap implements Listener {
      * @param playerNames   The list of player names to include in the game.
      */
     public void start(CommandSender commandSender, List<String> playerNames) {
+        String worldName = "deathswap_" + System.currentTimeMillis();
+        worldManager.createNewWorld(worldName);
+        worldManager.teleportPlayersToWorld(playerNames, worldName);
+        startGame(playerNames, commandSender);
+        commandSender.sendMessage("DeathSwap game started in world: " + worldName);
+    }
+
+    /**
+     * Starts the DeathSwap game.
+     *
+     * @param playerNames   The list of player names to include in the game.
+     * @param commandSender The sender of the command to start the game.
+     */
+    public void startGame(List<String> playerNames, CommandSender commandSender) {
         if (swapTimerTask != null && !swapTimerTask.isCancelled()) {
-            commandSender.sendMessage("A DeathSwap game is already running.");
             return;
         }
 
         players.clear();
-        // Add players to the game and clear their inventories
+        List<Player> validPlayers = new ArrayList<>();
+
+        // Validate all players before starting the game
         for (String name : playerNames) {
             Player player = Bukkit.getPlayerExact(name);
             if (player != null && player.isOnline()) {
-                players.add(player);
-                playerInventories.put(player, player.getInventory().getContents());
-                player.getInventory().clear();
+                validPlayers.add(player);
             } else {
-                commandSender.sendMessage("Player " + name + " is not online.");
+                String message = BROADCAST_PREFIX + "Player " + name
+                        + " is offline or not found. Cannot start the game.";
+                Bukkit.broadcastMessage(message);
+                commandSender.sendMessage(message);
+                return;
             }
         }
 
         // Check if there are at least two players to start the game
-        if (players.size() < 2) {
-            commandSender.sendMessage("At least two players are required to start DeathSwap.");
+        if (validPlayers.size() < 2) {
+            String message = BROADCAST_PREFIX + "Not enough players to start the game. Minimum 2 players required.";
+            Bukkit.broadcastMessage(message);
+            commandSender.sendMessage(message);
             return;
         }
 
+        // Add players to the game and clear their inventories
+        for (Player player : validPlayers) {
+            players.add(player);
+            playerInventories.put(player, player.getInventory().getContents());
+            player.getInventory().clear();
+        }
+
         // Broadcast the start message to all players
-        commandSender.sendMessage(BROADCAST_PREFIX + "is starting with players: " + String.join(", ", playerNames));
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "is starting with players: " + String.join(", ", playerNames));
         startSwapTimer();
     }
 

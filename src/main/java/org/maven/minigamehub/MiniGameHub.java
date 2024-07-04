@@ -12,6 +12,7 @@ import org.maven.minigamehub.games.Spleef;
 import org.maven.minigamehub.games.SurvivalGames;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.MultiverseCore;
+import org.maven.minigamehub.world.WorldManager;
 
 /**
  * Main class for the MiniGameHub plugin.
@@ -23,6 +24,7 @@ public final class MiniGameHub extends JavaPlugin {
     private SurvivalGames survivalGames;
     private DeathSwap deathSwap;
     private Spleef spleef;
+    private WorldManager worldManager;
 
     /**
      * Called when the plugin is enabled.
@@ -35,30 +37,25 @@ public final class MiniGameHub extends JavaPlugin {
             configManager = new ConfigManager(this);
             configManager.setup();
 
-            // Get the Multiverse-Core plugin to manage worlds
-            MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
-            if (core != null) {
-                MVWorldManager worldManager = core.getMVWorldManager();
-                // Initialize the SurvivalGames instance with the world manager
-                survivalGames = new SurvivalGames(this, worldManager, configManager);
-            } else {
-                // Log a warning if Multiverse-Core is not found
-                getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
-                survivalGames = null;
-            }
+        initializeGames();
 
-            // Initialize other game instances
-            deathSwap = new DeathSwap(this, configManager);
-            spleef = new Spleef();
+        getLogger().info("MiniGameHub has been enabled!");
+    }
 
-            // Log that the plugin has been enabled
-            getLogger().info("MiniGameHub has been enabled!");
-        } catch (Exception e) {
-            getLogger().severe("An error occurred while enabling MiniGameHub: " + e.getMessage());
-            e.printStackTrace();
-            // Disable the plugin if an error occurs during initialization
-            getServer().getPluginManager().disablePlugin(this);
+    private void initializeGames() {
+        MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
+        if (core != null) {
+            MVWorldManager mvWorldManager = core.getMVWorldManager();
+            survivalGames = new SurvivalGames(this, mvWorldManager, configManager);
+            worldManager = new WorldManager(this, core);
+        } else {
+            getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
+            survivalGames = null;
+            worldManager = null;
         }
+
+        deathSwap = new DeathSwap(this, configManager, worldManager);
+        // spleef = new Spleef();
     }
 
     /**
