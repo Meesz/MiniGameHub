@@ -2,6 +2,7 @@ package org.maven.minigamehub.games;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -12,6 +13,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.ChatColor;
 import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.world.WorldManager;
 
@@ -29,10 +31,9 @@ import java.util.stream.Collectors;
  */
 public class DeathSwap implements Listener {
     private static final int TICKS_PER_SECOND = 20;
-    private static final String BROADCAST_PREFIX = "DeathSwap: ";
+    private static final String BROADCAST_PREFIX = ChatColor.GOLD + "DeathSwap: " + ChatColor.RESET;
 
     private final JavaPlugin plugin;
-    private final ConfigManager configManager;
     private final WorldManager worldManager;
     private final Set<Player> players;
     private final int swapInterval;
@@ -50,7 +51,6 @@ public class DeathSwap implements Listener {
      */
     public DeathSwap(JavaPlugin plugin, ConfigManager configManager, WorldManager worldManager) {
         this.plugin = plugin;
-        this.configManager = configManager;
         this.worldManager = worldManager;
         this.players = new HashSet<>();
         this.swapInterval = configManager.getGameConfig("deathswap").getInt("swap_interval", 180);
@@ -166,13 +166,33 @@ public class DeathSwap implements Listener {
         }
 
         swapTimerTask = new BukkitRunnable() {
+            int countdown = swapInterval;
+
             @Override
             public void run() {
-                swapPlayers();
+                if (countdown <= 0) {
+                    swapPlayers();
+                    countdown = swapInterval;
+                } else if (countdown <= 5 || countdown == 10 || countdown == 30 || countdown == 60) {
+                    broadcastCountdown(countdown);
+                }
+                countdown--;
             }
         };
-        swapTimerTask.runTaskTimer(plugin, (long) swapInterval * TICKS_PER_SECOND,
-                (long) swapInterval * TICKS_PER_SECOND);
+        swapTimerTask.runTaskTimer(plugin, 0L, TICKS_PER_SECOND);
+    }
+
+    /**
+     * Broadcasts the countdown to all players.
+     *
+     * @param seconds The number of seconds remaining until the swap.
+     */
+    private void broadcastCountdown(int seconds) {
+        String message = BROADCAST_PREFIX + "Swapping in " + seconds + " second" + (seconds == 1 ? "" : "s") + "!";
+        for (Player player : players) {
+            player.sendMessage(message);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
+        }
     }
 
     /**
@@ -197,52 +217,11 @@ public class DeathSwap implements Listener {
             Location nextLocation = locations.get((i + 1) % locations.size());
 
             player.teleport(nextLocation);
-            Bukkit.broadcastMessage(
-                    BROADCAST_PREFIX + player.getName() + " swapped places with " + nextPlayer.getName());
+            player.sendMessage(BROADCAST_PREFIX + "You swapped places with " + nextPlayer.getName() + "!");
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
         }
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Players have been swapped!");
     }
-
-    // /**
-    // * Collects the current locations of all players.
-    // *
-    // * @return A list of player locations.
-    // */
-    // private List<Location> collectPlayerLocations() {
-    // return players.stream()
-    // .map(player -> player != null ? player.getLocation() : null)
-    // .collect(Collectors.toList());
-    // }
-
-    // /**
-    // * Performs the actual swap of player locations.
-    // *
-    // * @param playerList The list of players to swap.
-    // * @param locations The list of locations to swap players to.
-    // * @return A list of swap information messages.
-    // */
-    // private List<String> performSwap(List<Player> playerList, List<Location>
-    // locations) {
-    // List<String> swapInfo = new ArrayList<>();
-
-    // // Swap each player's location with the next player in the list
-    // for (int i = 0; i < playerList.size(); i++) {
-    // Player player = playerList.get(i);
-    // if (player != null) {
-    // Player swappedWith = playerList.get((i + 1) % playerList.size());
-    // Location newLocation = locations.get((i + 1) % playerList.size());
-
-    // if (newLocation != null && newLocation.getWorld() != null) {
-    // player.teleport(newLocation);
-    // swapInfo.add(player.getName() + " swapped places with "
-    // + (swappedWith != null ? swappedWith.getName() : "unknown"));
-    // } else {
-    // Bukkit.getLogger().warning("Invalid swap location for player " +
-    // player.getName());
-    // }
-    // }
-    // }
-    // return swapInfo;
-    // }
 
     /**
      * Stops the DeathSwap game.
