@@ -1,34 +1,23 @@
 package org.maven.minigamehub.games;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
 import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.world.WorldManager;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * Class representing the DeathSwap game.
+ * Implements the Listener interface to handle various game events.
  */
 public class DeathSwap implements Listener {
     private static final int TICKS_PER_SECOND = 20;
@@ -36,76 +25,92 @@ public class DeathSwap implements Listener {
 
     private final JavaPlugin plugin;
     private final WorldManager worldManager;
-    private final Set<Player> players;
+    private final Set<Player> gamePlayers = new HashSet<>();
+    private final Set<Player> alivePlayers = new HashSet<>();
     private final Set<Player> spectators = new HashSet<>();
     private final int swapInterval;
     private BukkitRunnable swapTimerTask;
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
-    private boolean creatorMode = false;
+    private final Map<Player, ItemStack[]> playerArmor = new HashMap<>();
+    private boolean creatorMode;
     private String currentGameWorld;
+    private final Location mainWorldSpawnLocation;
 
     /**
      * Constructor for the DeathSwap class.
-     *
-     * @param plugin        The JavaPlugin instance.
+     * 
+     * @param plugin The JavaPlugin instance.
      * @param configManager The ConfigManager instance.
-     * @param worldManager  The WorldManager instance.
+     * @param worldManager The WorldManager instance.
      */
     public DeathSwap(JavaPlugin plugin, ConfigManager configManager, WorldManager worldManager) {
         this.plugin = plugin;
         this.worldManager = worldManager;
-        this.players = new HashSet<>();
         this.swapInterval = configManager.getGameConfig("deathswap").getInt("swap_interval", 180);
+        this.mainWorldSpawnLocation = Bukkit.getWorld(plugin.getConfig().getString("main_world", "world"))
+                .getSpawnLocation();
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     /**
      * Starts the DeathSwap game.
-     *
-     * @param commandSender The sender of the command.
-     * @param playerNames   The list of player names to include in the game.
+     * 
+     * @param commandSender The sender of the command to start the game.
+     * @param playerNames The list of player names to include in the game.
      */
     public void start(CommandSender commandSender, List<String> playerNames) {
-        String worldName = "deathswap_" + System.currentTimeMillis();
-        worldManager.createNewWorld(worldName);
-        double borderSize = plugin.getConfig().getDouble("deathswap_border_size", 1000);
-        worldManager.setWorldBorder(worldName, borderSize);
-        worldManager.teleportPlayersToWorld(playerNames, worldName);
-
-        startGame(playerNames, commandSender);
-        commandSender.sendMessage("DeathSwap game started in world: " + worldName);
-    }
-
-    public void startGame(List<String> playerNames, CommandSender commandSender) {
         if (isGameRunning()) {
+            commandSender.sendMessage(BROADCAST_PREFIX + "A game is already in progress.");
             return;
         }
 
-        players.clear();
-        spectators.clear();
+        currentGameWorld = "deathswap_" + System.currentTimeMillis();
+        worldManager.createNewWorld(currentGameWorld);
+        worldManager.setWorldBorder(currentGameWorld, plugin.getConfig().getDouble("deathswap_border_size", 1000));
+        worldManager.teleportPlayersToWorld(playerNames, currentGameWorld);
+
         List<Player> validPlayers = validatePlayers(playerNames, commandSender);
-
-        if (!hasEnoughPlayers(validPlayers, commandSender)) {
+        if (!hasEnoughPlayers(validPlayers, commandSender))
             return;
-        }
 
+        gamePlayers.addAll(validPlayers);
+        alivePlayers.addAll(validPlayers);
         preparePlayersForGame(validPlayers);
         announceGameStart(validPlayers);
         startSwapTimer();
+        commandSender.sendMessage(BROADCAST_PREFIX + "DeathSwap game started in world: " + currentGameWorld);
     }
 
+    /**
+     * Checks if a game is currently running.
+     * 
+     * @return true if a game is running, false otherwise.
+     */
     private boolean isGameRunning() {
         return swapTimerTask != null && !swapTimerTask.isCancelled();
     }
 
+    /**
+     * Checks if there are enough players to start the game.
+     * 
+     * @param validPlayers The list of valid players.
+     * @param commandSender The sender of the command to start the game.
+     * @return true if there are enough players, false otherwise.
+     */
     private boolean hasEnoughPlayers(List<Player> validPlayers, CommandSender commandSender) {
         if (validPlayers.size() < 2) {
-            commandSender.sendMessage("Not enough players to start the game. Minimum 2 players required.");
+            commandSender.sendMessage(
+                    BROADCAST_PREFIX + "Not enough players to start the game. Minimum 2 players required.");
             return false;
         }
         return true;
     }
 
+    /**
+     * Announces the start of the game to all players.
+     * 
+     * @param validPlayers The list of valid players.
+     */
     private void announceGameStart(List<Player> validPlayers) {
         String playerNames = validPlayers.stream().map(Player::getName).collect(Collectors.joining(", "));
         Bukkit.broadcastMessage(BROADCAST_PREFIX + "Game is starting with players: " + playerNames);
@@ -113,16 +118,15 @@ public class DeathSwap implements Listener {
 
     /**
      * Validates the list of player names and returns a list of valid players.
-     *
-     * @param playerNames   The list of player names to validate.
+     * 
+     * @param playerNames The list of player names to validate.
      * @param commandSender The sender of the command to start the game.
-     * @return A list of valid players.
+     * @return The list of valid players.
      */
     private List<Player> validatePlayers(List<String> playerNames, CommandSender commandSender) {
         List<Player> validPlayers = new ArrayList<>();
         List<String> offlinePlayers = new ArrayList<>();
 
-        // Validate all players before starting the game
         for (String name : playerNames) {
             Player player = Bukkit.getPlayerExact(name);
             if (player != null && player.isOnline()) {
@@ -132,33 +136,30 @@ public class DeathSwap implements Listener {
             }
         }
 
-        // Notify about offline players
         if (!offlinePlayers.isEmpty()) {
-            String offlineMessage = BROADCAST_PREFIX + "The following players are offline or not found: "
-                    + String.join(", ", offlinePlayers);
-            commandSender.sendMessage(offlineMessage);
+            commandSender.sendMessage(BROADCAST_PREFIX + "The following players are offline or not found: "
+                    + String.join(", ", offlinePlayers));
         }
 
         return validPlayers;
     }
 
     /**
-     * Prepares the players for the game by adding them to the game and clearing
-     * their inventories.
-     *
-     * @param validPlayers The list of valid players to prepare.
+     * Prepares the players for the game by clearing their inventories and armor.
+     * 
+     * @param validPlayers The list of valid players.
      */
     private void preparePlayersForGame(List<Player> validPlayers) {
-        // Add players to the game and clear their inventories
         for (Player player : validPlayers) {
-            players.add(player);
             playerInventories.put(player, player.getInventory().getContents());
+            playerArmor.put(player, player.getInventory().getArmorContents());
             player.getInventory().clear();
+            player.getInventory().setArmorContents(null);
         }
     }
 
     /**
-     * Starts the timer for swapping players.
+     * Starts the swap timer task that periodically swaps players' locations.
      */
     private void startSwapTimer() {
         if (swapTimerTask != null) {
@@ -183,32 +184,29 @@ public class DeathSwap implements Listener {
     }
 
     /**
-     * Broadcasts the countdown to all players.
-     *
-     * @param seconds The number of seconds remaining until the swap.
+     * Broadcasts a countdown message to all players.
+     * 
+     * @param seconds The number of seconds remaining until the next swap.
      */
     private void broadcastCountdown(int seconds) {
         String message = BROADCAST_PREFIX + "Swapping in " + seconds + " second" + (seconds == 1 ? "" : "s") + "!";
-        for (Player player : players) {
+        for (Player player : gamePlayers) {
             player.sendMessage(message);
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
         }
     }
 
     /**
-     * Swaps the locations of the players.
+     * Swaps the locations of all alive players.
      */
     private void swapPlayers() {
-        if (players.size() < 2) {
+        if (alivePlayers.size() < 2) {
             stopGame();
             return;
         }
 
-        List<Location> locations = players.stream()
-                .map(Player::getLocation)
-                .collect(Collectors.toList());
-
-        List<Player> playerList = new ArrayList<>(players);
+        List<Location> locations = alivePlayers.stream().map(Player::getLocation).toList();
+        List<Player> playerList = new ArrayList<>(alivePlayers);
         Collections.shuffle(playerList);
 
         for (int i = 0; i < playerList.size(); i++) {
@@ -222,110 +220,123 @@ public class DeathSwap implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerRespawn(PlayerRespawnEvent event) {
+    /**
+     * Handles the player respawn event.
+     * 
+     * @param event The PlayerRespawnEvent instance.
+     */
+    public void handlePlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
-        if (spectators.contains(player)) {
-            player.setGameMode(GameMode.SPECTATOR);
+        if (spectators.contains(player) || alivePlayers.contains(player)) {
+            event.setRespawnLocation(alivePlayers.size() > 1 ? Bukkit.getWorld(currentGameWorld).getSpawnLocation()
+                    : mainWorldSpawnLocation);
+            if (alivePlayers.size() > 1) {
+                player.setGameMode(GameMode.SPECTATOR);
+            }
+        } else {
+            event.setRespawnLocation(mainWorldSpawnLocation);
         }
     }
 
     /**
-     * Stops the DeathSwap game.
+     * Stops the DeathSwap game and resets all players and game state.
      */
     public void stopGame() {
         if (swapTimerTask != null) {
             swapTimerTask.cancel();
             swapTimerTask = null;
         }
-        // Restore players' inventories
-        for (Player player : players) {
+
+        for (Player player : gamePlayers) {
             if (player != null && player.isOnline()) {
-                ItemStack[] savedInventory = playerInventories.get(player);
-                if (savedInventory != null) {
-                    player.getInventory().setContents(savedInventory);
-                }
+                player.getInventory().setContents(playerInventories.get(player));
+                player.getInventory().setArmorContents(playerArmor.get(player));
+                player.teleport(mainWorldSpawnLocation);
             }
         }
         playerInventories.clear();
-        players.clear();
+        playerArmor.clear();
+        gamePlayers.clear();
+        alivePlayers.clear();
         spectators.clear();
-        // Teleport players back to the main world
-        String mainWorld = plugin.getConfig().getString("main_world", "world");
-        for (Player player : players) {
-            if (player != null && player.isOnline()) {
-                player.teleport(Bukkit.getWorld(mainWorld).getSpawnLocation());
-            }
-        }
 
-        // Delete the DeathSwap world
-        worldManager.deleteWorld(currentGameWorld);
-        currentGameWorld = null;
-    }
-
-    public void handlePlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        if (players.contains(player)) {
-            players.remove(player);
-            spectators.add(player);
-            player.setGameMode(GameMode.SPECTATOR);
-            if (players.size() == 1) {
-                Player winner = players.iterator().next();
-                Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
-            }
-
-            if (players.size() < 2) {
-                stopGame();
-            }
+        if (currentGameWorld != null) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    worldManager.removeAllPlayersFromWorld(currentGameWorld, "world");
+                    if (worldManager.unloadWorldFromServer(currentGameWorld)) {
+                        try {
+                            worldManager.deleteWorld(currentGameWorld);
+                        } catch (Exception e) {
+                            plugin.getLogger().severe(
+                                    "Failed to delete world: " + currentGameWorld + ". Error: " + e.getMessage());
+                        }
+                    } else {
+                        plugin.getLogger().severe("Failed to unload world: " + currentGameWorld);
+                    }
+                    currentGameWorld = null;
+                }
+            }.runTaskLater(plugin, 20L);
         }
     }
 
     /**
-     * Handles player disconnections during the game.
-     *
+     * Handles the player death event.
+     * 
+     * @param event The PlayerDeathEvent instance.
+     */
+    public void handlePlayerDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (alivePlayers.remove(player)) {
+            spectators.add(player);
+            player.setGameMode(GameMode.SPECTATOR);
+            if (alivePlayers.size() <= 1) {
+                if (alivePlayers.size() == 1) {
+                    Player winner = alivePlayers.iterator().next();
+                    Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
+                }
+                stopGame();
+            }
+        }
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Player " + player.getName() + " has died.");
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Players: " + alivePlayers.size());
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Spectators: " + spectators.size());
+    }
+
+    /**
+     * Handles the player disconnect event.
+     * 
      * @param player The player who disconnected.
      */
     public void handlePlayerDisconnect(Player player) {
-        if (players.contains(player)) {
-            players.remove(player);
-
-            // Restore the player's inventory
-            ItemStack[] savedInventory = playerInventories.remove(player);
-            if (savedInventory != null) {
-                player.getInventory().setContents(savedInventory);
-            }
-
-            if (players.size() == 1) {
-                Player winner = players.iterator().next();
-                Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
-            }
-
-            if (players.size() < 2) {
+        if (alivePlayers.remove(player)) {
+            player.getInventory().setContents(playerInventories.remove(player));
+            if (alivePlayers.size() <= 1) {
+                if (alivePlayers.size() == 1) {
+                    Player winner = alivePlayers.iterator().next();
+                    Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
+                }
                 stopGame();
             }
-        } else if (spectators.contains(player)) {
+        } else {
             spectators.remove(player);
         }
     }
 
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        handlePlayerDisconnect(event.getPlayer());
-    }
-
     /**
-     * Enables or disables creator mode for the game admin.
-     *
-     * @param enable True to enable creator mode, false to disable.
+     * Sets the creator mode for the DeathSwap game.
+     * 
+     * @param creatorMode true to enable creator mode, false to disable.
      */
     public void setCreatorMode(boolean creatorMode) {
         this.creatorMode = creatorMode;
     }
 
     /**
-     * Checks if creator mode is currently enabled.
-     *
-     * @return True if creator mode is enabled, false otherwise.
+     * Checks if the creator mode is enabled.
+     * 
+     * @return true if creator mode is enabled, false otherwise.
      */
     public boolean isCreatorModeEnabled() {
         return creatorMode;

@@ -33,7 +33,7 @@ The plugin comes with default configuration files for each game mode. These file
 ### General Commands
 
 - `/minigame start <game> <world> [player1] [player2] ...`: Starts the specified game in the given world with the listed players.
-- `/minigame setup survivalgames <world>`: Enters setup mode for Survival Games in the specified world.
+- `/minigame setup <game> <world>`: Enters setup mode for the specified game in the given world.
 
 ### Survival Games Commands
 
