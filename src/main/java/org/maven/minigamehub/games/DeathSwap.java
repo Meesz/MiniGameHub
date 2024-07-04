@@ -45,7 +45,7 @@ public class DeathSwap implements Listener {
     private final Map<Player, ItemStack[]> playerArmor;
     private boolean creatorMode;
     private String currentGameWorld;
-    private Location mainWorldSpawnLocation;
+    private final Location mainWorldSpawnLocation;
 
     /**
      * Constructor for the DeathSwap class.
@@ -273,6 +273,7 @@ public class DeathSwap implements Listener {
             }
         } else {
             plugin.getLogger().info("Player is not part of the game.");
+            event.setRespawnLocation(mainWorldSpawnLocation); // Ensure player respawns in the main world
         }
     }
 
@@ -302,15 +303,17 @@ public class DeathSwap implements Listener {
         alivePlayers.clear();
         spectators.clear();
         if (currentGameWorld != null) {
-            worldManager.unloadWorld(currentGameWorld);
-            plugin.getLogger().info("Attempting to delete world: " + currentGameWorld);
-            try {
-                worldManager.removeAllPlayersFromWorld(currentGameWorld);
-                worldManager.deleteWorld(currentGameWorld);
-
-                plugin.getLogger().info("Successfully deleted world: " + currentGameWorld);
-            } catch (Exception e) {
-                plugin.getLogger().severe("Failed to delete world: " + currentGameWorld + ". Error: " + e.getMessage());
+            worldManager.removeAllPlayersFromWorld(currentGameWorld, "world");
+            if (worldManager.unloadWorld(currentGameWorld)) { // Ensure the world is unloaded
+                plugin.getLogger().info("Attempting to delete world: " + currentGameWorld);
+                try {
+                    worldManager.deleteWorld(currentGameWorld);
+                    plugin.getLogger().info("Successfully deleted world: " + currentGameWorld);
+                } catch (Exception e) {
+                    plugin.getLogger().severe("Failed to delete world: " + currentGameWorld + ". Error: " + e.getMessage());
+                }
+            } else {
+                plugin.getLogger().severe("Failed to unload world: " + currentGameWorld);
             }
             currentGameWorld = null;
             plugin.getLogger().info("Reset currentGameWorld to null");

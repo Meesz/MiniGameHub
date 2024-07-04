@@ -3,6 +3,7 @@ package org.maven.minigamehub.world;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.MultiverseCore;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
 import org.bukkit.World;
 import org.bukkit.WorldType;
 import org.bukkit.entity.Player;
@@ -24,7 +25,11 @@ public class WorldManager {
       return worldManager.getMVWorld(worldName).getCBWorld();
     }
     worldManager.addWorld(worldName, World.Environment.NORMAL, null, WorldType.NORMAL, true, null);
-    return Bukkit.getWorld(worldName);
+    World newWorld = Bukkit.getWorld(worldName);
+    if (newWorld != null) {
+      newWorld.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
+    }
+    return newWorld;
   }
 
   public void teleportPlayersToWorld(List<String> playerNames, String worldName) {
@@ -71,15 +76,19 @@ public class WorldManager {
   }
 
   public void deleteWorld(String worldName) {
-    worldManager.deleteWorld(worldName);
+    worldManager.deleteWorld(worldName, true, true);
   }
 
   // Unload world
-  public void unloadWorld(String worldName) {
-    worldManager.unloadWorld(worldName);
+  public boolean unloadWorld(String worldName) {
+    Bukkit.broadcastMessage("Amount of players in the world: " + Bukkit.getWorld(worldName).getPlayers().size());
+    return worldManager.unloadWorld(worldName, true);
   }
 
-  public void removeAllPlayersFromWorld(String worldName) {
-    ((WorldManager) worldManager).removeAllPlayersFromWorld(worldName);
+  public void removeAllPlayersFromWorld(String worldName, String worldToTeleport) {
+    World currentWorld = Bukkit.getWorld(worldName);
+    if (currentWorld != null) {
+      currentWorld.getPlayers().forEach(player -> player.teleport(Bukkit.getWorld(worldToTeleport).getSpawnLocation()));
+    }
   }
 }

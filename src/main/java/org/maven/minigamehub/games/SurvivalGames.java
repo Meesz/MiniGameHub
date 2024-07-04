@@ -80,7 +80,7 @@ public class SurvivalGames implements Listener {
     private void loadAssignedWorlds() {
         if (configManager.getGameConfig("survivalgames").contains("assignedWorlds")) {
             List<String> assignedWorlds = configManager.getGameConfig("survivalgames").getStringList("assignedWorlds");
-            if (assignedWorlds != null && !assignedWorlds.isEmpty()) {
+            if (!assignedWorlds.isEmpty()) {
                 for (String worldName : assignedWorlds) {
                     MultiverseWorld world = worldManager.getMVWorld(worldName);
                     if (world != null) {
@@ -315,7 +315,7 @@ public class SurvivalGames implements Listener {
     }
 
     public void handlePlayerDisconnect(Player player) {
-        if (player != null && isPlayerInGame(player)) {
+        if (isPlayerInGame(player)) {
             players.remove(player);
             Bukkit.broadcastMessage(player.getName() + " has disconnected from the game.");
             restorePlayerState(player);
