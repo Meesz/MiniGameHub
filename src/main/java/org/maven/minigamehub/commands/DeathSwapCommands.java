@@ -1,5 +1,7 @@
 package org.maven.minigamehub.commands;
 
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.maven.minigamehub.config.ConfigManager;
@@ -7,7 +9,7 @@ import org.maven.minigamehub.games.DeathSwap;
 
 import java.util.List;
 
-public class DeathSwapCommands {
+public class DeathSwapCommands implements CommandExecutor {
   private final DeathSwap deathSwap;
   private final ConfigManager configManager;
 
@@ -62,5 +64,11 @@ public class DeathSwapCommands {
     } else {
       sender.sendMessage("Creator mode disabled for DeathSwap.");
     }
+  }
+
+  @Override
+  public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'onCommand'");
   }
 }

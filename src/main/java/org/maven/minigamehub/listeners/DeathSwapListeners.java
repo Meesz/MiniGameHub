@@ -1,5 +1,6 @@
 package org.maven.minigamehub.listeners;
 
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -12,10 +13,12 @@ public class DeathSwapListeners implements Listener {
     this.deathSwap = deathSwap;
   }
 
+  @EventHandler
   public void onPlayerDeath(PlayerDeathEvent event) {
     deathSwap.handlePlayerDeath(event);
   }
 
+  @EventHandler
   public void onPlayerQuit(PlayerQuitEvent event) {
     deathSwap.handlePlayerDisconnect(event.getPlayer());
   }
