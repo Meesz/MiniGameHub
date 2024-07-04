@@ -29,6 +29,7 @@ public class DeathSwap implements Listener {
     private final Set<Player> alivePlayers = new HashSet<>();
     private final Set<Player> spectators = new HashSet<>();
     private final int swapInterval;
+    private final Double borderSize;
     private BukkitRunnable swapTimerTask;
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
     private final Map<Player, ItemStack[]> playerArmor = new HashMap<>();
@@ -38,10 +39,10 @@ public class DeathSwap implements Listener {
 
     /**
      * Constructor for the DeathSwap class.
-     * 
-     * @param plugin The JavaPlugin instance.
+     *
+     * @param plugin        The JavaPlugin instance.
      * @param configManager The ConfigManager instance.
-     * @param worldManager The WorldManager instance.
+     * @param worldManager  The WorldManager instance.
      */
     public DeathSwap(JavaPlugin plugin, ConfigManager configManager, WorldManager worldManager) {
         this.plugin = plugin;
@@ -49,14 +50,15 @@ public class DeathSwap implements Listener {
         this.swapInterval = configManager.getGameConfig("deathswap").getInt("swap_interval", 180);
         this.mainWorldSpawnLocation = Bukkit.getWorld(plugin.getConfig().getString("main_world", "world"))
                 .getSpawnLocation();
+        this.borderSize = configManager.getGameConfig("deathswap").getDouble("border_size", 1000);
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     /**
      * Starts the DeathSwap game.
-     * 
+     *
      * @param commandSender The sender of the command to start the game.
-     * @param playerNames The list of player names to include in the game.
+     * @param playerNames   The list of player names to include in the game.
      */
     public void start(CommandSender commandSender, List<String> playerNames) {
         if (isGameRunning()) {
@@ -64,14 +66,14 @@ public class DeathSwap implements Listener {
             return;
         }
 
-        currentGameWorld = "deathswap_" + System.currentTimeMillis();
-        worldManager.createNewWorld(currentGameWorld);
-        worldManager.setWorldBorder(currentGameWorld, plugin.getConfig().getDouble("deathswap_border_size", 1000));
-        worldManager.teleportPlayersToWorld(playerNames, currentGameWorld);
-
         List<Player> validPlayers = validatePlayers(playerNames, commandSender);
         if (!hasEnoughPlayers(validPlayers, commandSender))
             return;
+
+        currentGameWorld = "deathswap_" + System.currentTimeMillis();
+        worldManager.createNewWorld(currentGameWorld);
+        worldManager.setWorldBorder(currentGameWorld, borderSize);
+        worldManager.teleportPlayersToWorld(playerNames, currentGameWorld);
 
         gamePlayers.addAll(validPlayers);
         alivePlayers.addAll(validPlayers);
@@ -83,7 +85,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Checks if a game is currently running.
-     * 
+     *
      * @return true if a game is running, false otherwise.
      */
     private boolean isGameRunning() {
@@ -92,8 +94,8 @@ public class DeathSwap implements Listener {
 
     /**
      * Checks if there are enough players to start the game.
-     * 
-     * @param validPlayers The list of valid players.
+     *
+     * @param validPlayers  The list of valid players.
      * @param commandSender The sender of the command to start the game.
      * @return true if there are enough players, false otherwise.
      */
@@ -108,7 +110,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Announces the start of the game to all players.
-     * 
+     *
      * @param validPlayers The list of valid players.
      */
     private void announceGameStart(List<Player> validPlayers) {
@@ -118,8 +120,8 @@ public class DeathSwap implements Listener {
 
     /**
      * Validates the list of player names and returns a list of valid players.
-     * 
-     * @param playerNames The list of player names to validate.
+     *
+     * @param playerNames   The list of player names to validate.
      * @param commandSender The sender of the command to start the game.
      * @return The list of valid players.
      */
@@ -146,7 +148,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Prepares the players for the game by clearing their inventories and armor.
-     * 
+     *
      * @param validPlayers The list of valid players.
      */
     private void preparePlayersForGame(List<Player> validPlayers) {
@@ -185,7 +187,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Broadcasts a countdown message to all players.
-     * 
+     *
      * @param seconds The number of seconds remaining until the next swap.
      */
     private void broadcastCountdown(int seconds) {
@@ -222,7 +224,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Handles the player respawn event.
-     * 
+     *
      * @param event The PlayerRespawnEvent instance.
      */
     public void handlePlayerRespawn(PlayerRespawnEvent event) {
@@ -283,7 +285,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Handles the player death event.
-     * 
+     *
      * @param event The PlayerDeathEvent instance.
      */
     public void handlePlayerDeath(PlayerDeathEvent event) {
@@ -298,15 +300,14 @@ public class DeathSwap implements Listener {
                 }
                 stopGame();
             }
+            Bukkit.broadcastMessage(BROADCAST_PREFIX + "Player " + player.getName() + " has died. "
+                    + alivePlayers.size() + " players remaining.");
         }
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Player " + player.getName() + " has died.");
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Players: " + alivePlayers.size());
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Spectators: " + spectators.size());
     }
 
     /**
      * Handles the player disconnect event.
-     * 
+     *
      * @param player The player who disconnected.
      */
     public void handlePlayerDisconnect(Player player) {
@@ -326,7 +327,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Sets the creator mode for the DeathSwap game.
-     * 
+     *
      * @param creatorMode true to enable creator mode, false to disable.
      */
     public void setCreatorMode(boolean creatorMode) {
@@ -335,7 +336,7 @@ public class DeathSwap implements Listener {
 
     /**
      * Checks if the creator mode is enabled.
-     * 
+     *
      * @return true if creator mode is enabled, false otherwise.
      */
     public boolean isCreatorModeEnabled() {

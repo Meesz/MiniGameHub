@@ -8,4 +8,6 @@ commands:
     description: Command to manage mini-games
     usage: /minigame start <game> <players>
     aliases: [mg, mgame, minig]
-
+  deathswap:
+    description: Command to manage DeathSwap game
+    usage: /deathswap <start|setup|enable|disable> ...
