@@ -235,10 +235,6 @@ public final class MiniGameHub extends JavaPlugin {
     }
 
     private void startDeathSwap(CommandSender sender, List<String> playerNames) {
-        if (playerNames.size() < 2) {
-            sender.sendMessage("Usage: /minigame start deathswap <player1> <player2> ...");
-            return;
-        }
         deathSwap.start(sender, playerNames);
     }
 }

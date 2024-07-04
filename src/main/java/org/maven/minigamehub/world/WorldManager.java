@@ -73,4 +73,13 @@ public class WorldManager {
   public void deleteWorld(String worldName) {
     worldManager.deleteWorld(worldName);
   }
+
+  // Unload world
+  public void unloadWorld(String worldName) {
+    worldManager.unloadWorld(worldName);
+  }
+
+  public void removeAllPlayersFromWorld(String worldName) {
+    ((WorldManager) worldManager).removeAllPlayersFromWorld(worldName);
+  }
 }
