@@ -7,3 +7,4 @@ commands:
   minigame:
     description: Command to manage mini-games
     usage: /minigame start <game> <players>
+

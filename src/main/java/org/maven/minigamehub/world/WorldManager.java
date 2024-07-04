@@ -40,4 +40,37 @@ public class WorldManager {
       }
     }
   }
+
+  public void setWorldBorder(String worldName, double size) {
+    World world = Bukkit.getWorld(worldName);
+    if (world == null) {
+      plugin.getLogger().severe("World " + worldName + " does not exist.");
+      return;
+    }
+
+    org.bukkit.WorldBorder border = world.getWorldBorder();
+    border.setCenter(world.getSpawnLocation());
+    border.setSize(size);
+    border.setWarningDistance(10);
+    border.setWarningTime(15);
+
+    plugin.getLogger().info("World border set for " + worldName + " with size " + size);
+  }
+
+  public void removeWorldBorder(String worldName) {
+    World world = Bukkit.getWorld(worldName);
+    if (world == null) {
+      plugin.getLogger().severe("World " + worldName + " does not exist.");
+      return;
+    }
+
+    org.bukkit.WorldBorder border = world.getWorldBorder();
+    border.reset();
+
+    plugin.getLogger().info("World border removed for " + worldName);
+  }
+
+  public void deleteWorld(String worldName) {
+    worldManager.deleteWorld(worldName);
+  }
 }

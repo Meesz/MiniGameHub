@@ -16,6 +16,7 @@ import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.world.WorldManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,6 +39,7 @@ public class DeathSwap implements Listener {
     private BukkitRunnable swapTimerTask;
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
     private boolean creatorMode = false;
+    private String currentGameWorld;
 
     /**
      * Constructor for the DeathSwap class.
@@ -64,24 +66,60 @@ public class DeathSwap implements Listener {
     public void start(CommandSender commandSender, List<String> playerNames) {
         String worldName = "deathswap_" + System.currentTimeMillis();
         worldManager.createNewWorld(worldName);
+        double borderSize = plugin.getConfig().getDouble("deathswap_border_size", 1000);
+        worldManager.setWorldBorder(worldName, borderSize);
         worldManager.teleportPlayersToWorld(playerNames, worldName);
+
         startGame(playerNames, commandSender);
         commandSender.sendMessage("DeathSwap game started in world: " + worldName);
     }
 
-    /**
-     * Starts the DeathSwap game.
-     *
-     * @param playerNames   The list of player names to include in the game.
-     * @param commandSender The sender of the command to start the game.
-     */
     public void startGame(List<String> playerNames, CommandSender commandSender) {
-        if (swapTimerTask != null && !swapTimerTask.isCancelled()) {
+        if (isGameRunning()) {
             return;
         }
 
         players.clear();
+        List<Player> validPlayers = validatePlayers(playerNames, commandSender);
+
+        if (!hasEnoughPlayers(validPlayers, commandSender)) {
+            return;
+        }
+
+        preparePlayersForGame(validPlayers);
+        announceGameStart(validPlayers);
+        startSwapTimer();
+    }
+
+    private boolean isGameRunning() {
+        return swapTimerTask != null && !swapTimerTask.isCancelled();
+    }
+
+    private boolean hasEnoughPlayers(List<Player> validPlayers, CommandSender commandSender) {
+        if (validPlayers.size() < 2) {
+            String message = BROADCAST_PREFIX + "Not enough players to start the game. Minimum 2 players required.";
+            Bukkit.broadcastMessage(message);
+            commandSender.sendMessage(message);
+            return false;
+        }
+        return true;
+    }
+
+    private void announceGameStart(List<Player> validPlayers) {
+        String playerNames = validPlayers.stream().map(Player::getName).collect(Collectors.joining(", "));
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "is starting with players: " + playerNames);
+    }
+
+    /**
+     * Validates the list of player names and returns a list of valid players.
+     *
+     * @param playerNames   The list of player names to validate.
+     * @param commandSender The sender of the command to start the game.
+     * @return A list of valid players.
+     */
+    private List<Player> validatePlayers(List<String> playerNames, CommandSender commandSender) {
         List<Player> validPlayers = new ArrayList<>();
+        List<String> offlinePlayers = new ArrayList<>();
 
         // Validate all players before starting the game
         for (String name : playerNames) {
@@ -89,32 +127,34 @@ public class DeathSwap implements Listener {
             if (player != null && player.isOnline()) {
                 validPlayers.add(player);
             } else {
-                String message = BROADCAST_PREFIX + "Player " + name
-                        + " is offline or not found. Cannot start the game.";
-                Bukkit.broadcastMessage(message);
-                commandSender.sendMessage(message);
-                return;
+                offlinePlayers.add(name);
             }
         }
 
-        // Check if there are at least two players to start the game
-        if (validPlayers.size() < 2) {
-            String message = BROADCAST_PREFIX + "Not enough players to start the game. Minimum 2 players required.";
-            Bukkit.broadcastMessage(message);
-            commandSender.sendMessage(message);
-            return;
+        // Notify about offline players
+        if (!offlinePlayers.isEmpty()) {
+            String offlineMessage = BROADCAST_PREFIX + "The following players are offline or not found: "
+                    + String.join(", ", offlinePlayers);
+            Bukkit.broadcastMessage(offlineMessage);
+            commandSender.sendMessage(offlineMessage);
         }
 
+        return validPlayers;
+    }
+
+    /**
+     * Prepares the players for the game by adding them to the game and clearing
+     * their inventories.
+     *
+     * @param validPlayers The list of valid players to prepare.
+     */
+    private void preparePlayersForGame(List<Player> validPlayers) {
         // Add players to the game and clear their inventories
         for (Player player : validPlayers) {
             players.add(player);
             playerInventories.put(player, player.getInventory().getContents());
             player.getInventory().clear();
         }
-
-        // Broadcast the start message to all players
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "is starting with players: " + String.join(", ", playerNames));
-        startSwapTimer();
     }
 
     /**
@@ -144,53 +184,65 @@ public class DeathSwap implements Listener {
             return;
         }
 
-        List<Location> locations = collectPlayerLocations();
-        List<Player> playerList = new ArrayList<>(players);
-        List<String> swapInfo = performSwap(playerList, locations);
-
-        // Broadcast swap information to all players
-        swapInfo.forEach(info -> Bukkit.broadcastMessage(BROADCAST_PREFIX + info));
-    }
-
-    /**
-     * Collects the current locations of all players.
-     *
-     * @return A list of player locations.
-     */
-    private List<Location> collectPlayerLocations() {
-        return players.stream()
-                .map(player -> player != null ? player.getLocation() : null)
+        List<Location> locations = players.stream()
+                .map(Player::getLocation)
                 .collect(Collectors.toList());
-    }
 
-    /**
-     * Performs the actual swap of player locations.
-     *
-     * @param playerList The list of players to swap.
-     * @param locations  The list of locations to swap players to.
-     * @return A list of swap information messages.
-     */
-    private List<String> performSwap(List<Player> playerList, List<Location> locations) {
-        List<String> swapInfo = new ArrayList<>();
+        List<Player> playerList = new ArrayList<>(players);
+        Collections.shuffle(playerList);
 
-        // Swap each player's location with the next player in the list
         for (int i = 0; i < playerList.size(); i++) {
             Player player = playerList.get(i);
-            if (player != null) {
-                Player swappedWith = playerList.get((i + 1) % playerList.size());
-                Location newLocation = locations.get((i + 1) % playerList.size());
+            Player nextPlayer = playerList.get((i + 1) % playerList.size());
+            Location nextLocation = locations.get((i + 1) % locations.size());
 
-                if (newLocation != null && newLocation.getWorld() != null) {
-                    player.teleport(newLocation);
-                    swapInfo.add(player.getName() + " swapped places with "
-                            + (swappedWith != null ? swappedWith.getName() : "unknown"));
-                } else {
-                    Bukkit.getLogger().warning("Invalid swap location for player " + player.getName());
-                }
-            }
+            player.teleport(nextLocation);
+            Bukkit.broadcastMessage(
+                    BROADCAST_PREFIX + player.getName() + " swapped places with " + nextPlayer.getName());
         }
-        return swapInfo;
     }
+
+    // /**
+    // * Collects the current locations of all players.
+    // *
+    // * @return A list of player locations.
+    // */
+    // private List<Location> collectPlayerLocations() {
+    // return players.stream()
+    // .map(player -> player != null ? player.getLocation() : null)
+    // .collect(Collectors.toList());
+    // }
+
+    // /**
+    // * Performs the actual swap of player locations.
+    // *
+    // * @param playerList The list of players to swap.
+    // * @param locations The list of locations to swap players to.
+    // * @return A list of swap information messages.
+    // */
+    // private List<String> performSwap(List<Player> playerList, List<Location>
+    // locations) {
+    // List<String> swapInfo = new ArrayList<>();
+
+    // // Swap each player's location with the next player in the list
+    // for (int i = 0; i < playerList.size(); i++) {
+    // Player player = playerList.get(i);
+    // if (player != null) {
+    // Player swappedWith = playerList.get((i + 1) % playerList.size());
+    // Location newLocation = locations.get((i + 1) % playerList.size());
+
+    // if (newLocation != null && newLocation.getWorld() != null) {
+    // player.teleport(newLocation);
+    // swapInfo.add(player.getName() + " swapped places with "
+    // + (swappedWith != null ? swappedWith.getName() : "unknown"));
+    // } else {
+    // Bukkit.getLogger().warning("Invalid swap location for player " +
+    // player.getName());
+    // }
+    // }
+    // }
+    // return swapInfo;
+    // }
 
     /**
      * Stops the DeathSwap game.
@@ -212,20 +264,24 @@ public class DeathSwap implements Listener {
         playerInventories.clear();
         players.clear();
         Bukkit.broadcastMessage(BROADCAST_PREFIX + "game has ended.");
+        // Teleport players back to the main world
+        String mainWorld = plugin.getConfig().getString("main_world", "world");
+        for (Player player : players) {
+            if (player != null && player.isOnline()) {
+                player.teleport(Bukkit.getWorld(mainWorld).getSpawnLocation());
+            }
+        }
+
+        // Delete the DeathSwap world
+        worldManager.deleteWorld(currentGameWorld);
+        currentGameWorld = null;
     }
 
-    /**
-     * Handles player deaths during the game.
-     *
-     * @param event The PlayerDeathEvent.
-     */
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
+    public void handlePlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
         if (players.contains(player)) {
             players.remove(player);
             Bukkit.broadcastMessage(BROADCAST_PREFIX + player.getName() + " has died.");
-
             if (players.size() == 1) {
                 Player winner = players.iterator().next();
                 Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
@@ -264,41 +320,6 @@ public class DeathSwap implements Listener {
         }
     }
 
-    /**
-     * Enters setup mode for the DeathSwap game.
-     *
-     * @param sender The sender of the command.
-     */
-    public void setup(CommandSender sender) {
-        if (!sender.isOp()) {
-            sender.sendMessage("You don't have permission to use this command.");
-            return;
-        }
-
-        // Load configuration
-        FileConfiguration config = configManager.getGameConfig("deathswap");
-
-        // Set up default values if they don't exist
-        if (!config.contains("minSwapTime")) {
-            config.set("minSwapTime", 30); // Default minimum swap time in seconds
-        }
-        if (!config.contains("maxSwapTime")) {
-            config.set("maxSwapTime", 300); // Default maximum swap time in seconds
-        }
-        if (!config.contains("warningTime")) {
-            config.set("warningTime", 10); // Default warning time before swap in seconds
-        }
-
-        // Save the configuration
-        configManager.saveGameConfig("deathswap");
-
-        sender.sendMessage("DeathSwap setup complete. Configuration saved.");
-        sender.sendMessage("You can modify the following settings in the deathswap.yml file:");
-        sender.sendMessage("- minSwapTime: Minimum time between swaps (in seconds)");
-        sender.sendMessage("- maxSwapTime: Maximum time between swaps (in seconds)");
-        sender.sendMessage("- warningTime: Time before swap to warn players (in seconds)");
-    }
-
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         handlePlayerDisconnect(event.getPlayer());
@@ -310,18 +331,8 @@ public class DeathSwap implements Listener {
      * @param sender The command sender (game admin).
      * @param enable True to enable creator mode, false to disable.
      */
-    public void setCreatorMode(CommandSender sender, boolean enable) {
-        if (!sender.isOp()) {
-            sender.sendMessage("You don't have permission to use this command.");
-            return;
-        }
-
-        this.creatorMode = enable;
-        if (enable) {
-            sender.sendMessage("Creator mode enabled for DeathSwap. You can now set up the game environment.");
-        } else {
-            sender.sendMessage("Creator mode disabled for DeathSwap.");
-        }
+    public void setCreatorMode(boolean creatorMode) {
+        this.creatorMode = creatorMode;
     }
 
     /**

@@ -132,12 +132,24 @@ public final class MiniGameHub extends JavaPlugin {
 
     private boolean handleStartCommand(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage("Usage: /minigame start <game> <world> [player1] [player2] ...");
+            sender.sendMessage("Usage: /minigame start <game> [world] [player1] [player2] ...");
             return true;
         }
         String game = args[1].toLowerCase();
-        String worldName = args.length > 2 ? args[2] : null;
-        List<String> playerNames = args.length > 3 ? Arrays.asList(Arrays.copyOfRange(args, 3, args.length)) : null;
+        List<String> playerNames;
+        String worldName = null;
+        
+        if (game.equals("survivalgames")) {
+            if (args.length < 4) {
+                sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
+                return true;
+            }
+            worldName = args[2];
+            playerNames = Arrays.asList(Arrays.copyOfRange(args, 3, args.length));
+        } else {
+            playerNames = Arrays.asList(Arrays.copyOfRange(args, 2, args.length));
+        }
+        
         sender.sendMessage("Starting the " + game + " game...");
         startGame(game, worldName, playerNames, sender);
         return true;
@@ -151,6 +163,8 @@ public final class MiniGameHub extends JavaPlugin {
         boolean enable = args[0].equalsIgnoreCase("enable");
         if (args[1].equalsIgnoreCase("survivalgames")) {
             survivalGames.setCreatorMode(enable);
+        } else if (args[1].equalsIgnoreCase("deathswap")) {
+            deathSwap.setCreatorMode(enable);
         } else {
             sender.sendMessage("Unknown game for " + (enable ? "enabling" : "disabling") + " creator mode: " + args[1]);
         }
@@ -170,12 +184,27 @@ public final class MiniGameHub extends JavaPlugin {
             switch (game) {
                 case "hungergames":
                 case "survivalgames":
+                    if (worldName == null) {
+                        sender.sendMessage(
+                                "Error: World name is missing. Usage: /minigame start survivalgames <world> <player1> <player2> ...");
+                        return;
+                    }
+                    if (playerNames.isEmpty()) {
+                        sender.sendMessage(
+                                "Error: Player names are missing. Usage: /minigame start survivalgames <world> <player1> <player2> ...");
+                        return;
+                    }
                     startSurvivalGames(sender, worldName, playerNames);
                     break;
                 case "spleef":
                     spleef.start(sender);
                     break;
                 case "deathswap":
+                    if (playerNames.size() < 2) {
+                        sender.sendMessage(
+                                "Error: At least two player names are required. Usage: /minigame start deathswap <player1> <player2> ...");
+                        return;
+                    }
                     startDeathSwap(sender, playerNames);
                     break;
                 default:
@@ -190,7 +219,7 @@ public final class MiniGameHub extends JavaPlugin {
 
     private void startSurvivalGames(CommandSender sender, String worldName, List<String> playerNames) {
         if (survivalGames != null) {
-            if (worldName == null || playerNames == null) {
+            if (worldName == null || playerNames.isEmpty()) {
                 sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
                 return;
             }
@@ -201,10 +230,11 @@ public final class MiniGameHub extends JavaPlugin {
     }
 
     private void startDeathSwap(CommandSender sender, List<String> playerNames) {
-        if (playerNames == null || playerNames.size() < 2) {
-            sender.sendMessage("Usage: /minigame start deathswap <player1> <player2>");
+        if (playerNames.size() < 2) {
+            sender.sendMessage("Usage: /minigame start deathswap <player1> <player2> ...");
             return;
         }
         deathSwap.start(sender, playerNames);
     }
 }
+
