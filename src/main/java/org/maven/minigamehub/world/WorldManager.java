@@ -81,7 +81,10 @@ public class WorldManager {
 
   // Unload world
   public boolean unloadWorld(String worldName) {
-    Bukkit.broadcastMessage("Amount of players in the world: " + Bukkit.getWorld(worldName).getPlayers().size());
+    if (worldName == null) {
+      plugin.getLogger().severe("World name is null, cannot unload world.");
+      return false;
+    }
     return worldManager.unloadWorld(worldName, true);
   }
 

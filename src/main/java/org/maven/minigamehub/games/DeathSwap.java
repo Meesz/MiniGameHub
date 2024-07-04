@@ -304,19 +304,25 @@ public class DeathSwap implements Listener {
         spectators.clear();
         if (currentGameWorld != null) {
             worldManager.removeAllPlayersFromWorld(currentGameWorld, "world");
-            if (worldManager.unloadWorld(currentGameWorld)) { // Ensure the world is unloaded
-                plugin.getLogger().info("Attempting to delete world: " + currentGameWorld);
-                try {
-                    worldManager.deleteWorld(currentGameWorld);
-                    plugin.getLogger().info("Successfully deleted world: " + currentGameWorld);
-                } catch (Exception e) {
-                    plugin.getLogger().severe("Failed to delete world: " + currentGameWorld + ". Error: " + e.getMessage());
+            // Add a delay to ensure players are teleported before unloading the world
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (currentGameWorld != null && worldManager.unloadWorld(currentGameWorld)) { // Ensure the world is unloaded
+                        plugin.getLogger().info("Attempting to delete world: " + currentGameWorld);
+                        try {
+                            worldManager.deleteWorld(currentGameWorld);
+                            plugin.getLogger().info("Successfully deleted world: " + currentGameWorld);
+                        } catch (Exception e) {
+                            plugin.getLogger().severe("Failed to delete world: " + currentGameWorld + ". Error: " + e.getMessage());
+                        }
+                    } else {
+                        plugin.getLogger().severe("Failed to unload world: " + currentGameWorld);
+                    }
+                    currentGameWorld = null;
+                    plugin.getLogger().info("Reset currentGameWorld to null");
                 }
-            } else {
-                plugin.getLogger().severe("Failed to unload world: " + currentGameWorld);
-            }
-            currentGameWorld = null;
-            plugin.getLogger().info("Reset currentGameWorld to null");
+            }.runTaskLater(plugin, 20L); // 20 ticks = 1 second delay
         } else {
             plugin.getLogger().info("No world to delete: currentGameWorld is null");
         }
