@@ -28,6 +28,7 @@ public final class MiniGameHub extends JavaPlugin {
     private DeathSwap deathSwap;
     private Spleef spleef;
     private WorldManager worldManager;
+    private DeathSwapCommands deathSwapCommands;
 
     /**
      * Called when the plugin is enabled.
@@ -35,6 +36,7 @@ public final class MiniGameHub extends JavaPlugin {
      */
     @Override
     public void onEnable() {
+        getLogger().info("Enabling MiniGameHub...");
         try {
             initializePlugin();
         } catch (Exception e) {
@@ -44,9 +46,10 @@ public final class MiniGameHub extends JavaPlugin {
     }
 
     private void initializePlugin() {
+        getLogger().info("Initializing ConfigManager...");
         configManager = new ConfigManager(this);
-        configManager.setup();
 
+        getLogger().info("Initializing games...");
         initializeGames();
 
         getLogger().info("MiniGameHub has been enabled!");
@@ -54,19 +57,21 @@ public final class MiniGameHub extends JavaPlugin {
 
     private void initializeGames() {
         MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
-        if (core != null) {
+        if (core != null && core.isEnabled()) {
+            getLogger().info("Multiverse-Core found and enabled.");
             MVWorldManager mvWorldManager = core.getMVWorldManager();
             survivalGames = new SurvivalGames(this, mvWorldManager, configManager);
             worldManager = new WorldManager(this, core);
         } else {
-            getLogger().warning("Multiverse-Core not found. SurvivalGames may not function correctly.");
+            getLogger().warning("Multiverse-Core not found or not enabled. SurvivalGames may not function correctly.");
             survivalGames = null;
             worldManager = null;
         }
 
         deathSwap = new DeathSwap(this, configManager, worldManager);
+        deathSwapCommands = new DeathSwapCommands(deathSwap, configManager, this);
         getServer().getPluginManager().registerEvents(new DeathSwapListeners(deathSwap), this);
-        // getCommand("deathswap").setExecutor(new DeathSwapCommands(deathSwap)); //
+        getCommand("deathswap").setExecutor(deathSwapCommands); //
         // Register the DeathSwapCommands executor
         // spleef = new Spleef();
     }
@@ -82,7 +87,7 @@ public final class MiniGameHub extends JavaPlugin {
 
     /**
      * Handles commands sent to the plugin.
-     * 
+     *
      * @param sender  The sender of the command.
      * @param command The command that was sent.
      * @param label   The alias of the command that was used.
@@ -176,14 +181,6 @@ public final class MiniGameHub extends JavaPlugin {
         return true;
     }
 
-    /**
-     * Starts the specified game.
-     * 
-     * @param game        The name of the game to start.
-     * @param worldName   The name of the world to play the game in.
-     * @param playerNames The list of player names to include in the game.
-     * @param sender      The sender of the command.
-     */
     private void startGame(String game, String worldName, List<String> playerNames, CommandSender sender) {
         try {
             switch (game) {
