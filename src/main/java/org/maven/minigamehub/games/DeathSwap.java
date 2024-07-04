@@ -4,16 +4,17 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
 import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.world.WorldManager;
 
@@ -36,6 +37,7 @@ public class DeathSwap implements Listener {
     private final JavaPlugin plugin;
     private final WorldManager worldManager;
     private final Set<Player> players;
+    private final Set<Player> spectators = new HashSet<>();
     private final int swapInterval;
     private BukkitRunnable swapTimerTask;
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
@@ -80,6 +82,7 @@ public class DeathSwap implements Listener {
         }
 
         players.clear();
+        spectators.clear();
         List<Player> validPlayers = validatePlayers(playerNames, commandSender);
 
         if (!hasEnoughPlayers(validPlayers, commandSender)) {
@@ -97,9 +100,7 @@ public class DeathSwap implements Listener {
 
     private boolean hasEnoughPlayers(List<Player> validPlayers, CommandSender commandSender) {
         if (validPlayers.size() < 2) {
-            String message = BROADCAST_PREFIX + "Not enough players to start the game. Minimum 2 players required.";
-            Bukkit.broadcastMessage(message);
-            commandSender.sendMessage(message);
+            commandSender.sendMessage("Not enough players to start the game. Minimum 2 players required.");
             return false;
         }
         return true;
@@ -107,7 +108,7 @@ public class DeathSwap implements Listener {
 
     private void announceGameStart(List<Player> validPlayers) {
         String playerNames = validPlayers.stream().map(Player::getName).collect(Collectors.joining(", "));
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "is starting with players: " + playerNames);
+        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Game is starting with players: " + playerNames);
     }
 
     /**
@@ -135,7 +136,6 @@ public class DeathSwap implements Listener {
         if (!offlinePlayers.isEmpty()) {
             String offlineMessage = BROADCAST_PREFIX + "The following players are offline or not found: "
                     + String.join(", ", offlinePlayers);
-            Bukkit.broadcastMessage(offlineMessage);
             commandSender.sendMessage(offlineMessage);
         }
 
@@ -220,7 +220,14 @@ public class DeathSwap implements Listener {
             player.sendMessage(BROADCAST_PREFIX + "You swapped places with " + nextPlayer.getName() + "!");
             player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
         }
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "Players have been swapped!");
+    }
+
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        if (spectators.contains(player)) {
+            player.setGameMode(GameMode.SPECTATOR);
+        }
     }
 
     /**
@@ -242,7 +249,7 @@ public class DeathSwap implements Listener {
         }
         playerInventories.clear();
         players.clear();
-        Bukkit.broadcastMessage(BROADCAST_PREFIX + "game has ended.");
+        spectators.clear();
         // Teleport players back to the main world
         String mainWorld = plugin.getConfig().getString("main_world", "world");
         for (Player player : players) {
@@ -260,7 +267,8 @@ public class DeathSwap implements Listener {
         Player player = event.getEntity();
         if (players.contains(player)) {
             players.remove(player);
-            Bukkit.broadcastMessage(BROADCAST_PREFIX + player.getName() + " has died.");
+            spectators.add(player);
+            player.setGameMode(GameMode.SPECTATOR);
             if (players.size() == 1) {
                 Player winner = players.iterator().next();
                 Bukkit.broadcastMessage(BROADCAST_PREFIX + winner.getName() + " has won the game!");
@@ -280,7 +288,6 @@ public class DeathSwap implements Listener {
     public void handlePlayerDisconnect(Player player) {
         if (players.contains(player)) {
             players.remove(player);
-            Bukkit.broadcastMessage(BROADCAST_PREFIX + player.getName() + " has disconnected from the game.");
 
             // Restore the player's inventory
             ItemStack[] savedInventory = playerInventories.remove(player);
@@ -296,6 +303,8 @@ public class DeathSwap implements Listener {
             if (players.size() < 2) {
                 stopGame();
             }
+        } else if (spectators.contains(player)) {
+            spectators.remove(player);
         }
     }
 
@@ -307,7 +316,6 @@ public class DeathSwap implements Listener {
     /**
      * Enables or disables creator mode for the game admin.
      *
-     * @param sender The command sender (game admin).
      * @param enable True to enable creator mode, false to disable.
      */
     public void setCreatorMode(boolean creatorMode) {

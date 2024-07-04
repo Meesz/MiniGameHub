@@ -14,6 +14,8 @@ import org.maven.minigamehub.games.SurvivalGames;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.MultiverseCore;
 import org.maven.minigamehub.world.WorldManager;
+import org.maven.minigamehub.listeners.DeathSwapListeners;
+import org.maven.minigamehub.commands.DeathSwapCommands; // Import the DeathSwapCommands class
 
 /**
  * Main class for the MiniGameHub plugin.
@@ -63,6 +65,9 @@ public final class MiniGameHub extends JavaPlugin {
         }
 
         deathSwap = new DeathSwap(this, configManager, worldManager);
+        getServer().getPluginManager().registerEvents(new DeathSwapListeners(deathSwap), this);
+        // getCommand("deathswap").setExecutor(new DeathSwapCommands(deathSwap)); //
+        // Register the DeathSwapCommands executor
         // spleef = new Spleef();
     }
 
@@ -138,7 +143,7 @@ public final class MiniGameHub extends JavaPlugin {
         String game = args[1].toLowerCase();
         List<String> playerNames;
         String worldName = null;
-        
+
         if (game.equals("survivalgames")) {
             if (args.length < 4) {
                 sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
@@ -149,7 +154,7 @@ public final class MiniGameHub extends JavaPlugin {
         } else {
             playerNames = Arrays.asList(Arrays.copyOfRange(args, 2, args.length));
         }
-        
+
         sender.sendMessage("Starting the " + game + " game...");
         startGame(game, worldName, playerNames, sender);
         return true;
@@ -237,4 +242,3 @@ public final class MiniGameHub extends JavaPlugin {
         deathSwap.start(sender, playerNames);
     }
 }
-
