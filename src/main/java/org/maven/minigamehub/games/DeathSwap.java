@@ -3,6 +3,7 @@ package org.maven.minigamehub.games;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -34,6 +35,7 @@ public class DeathSwap implements Listener {
     private final int swapInterval;
     private BukkitRunnable swapTimerTask;
     private final Map<Player, ItemStack[]> playerInventories = new HashMap<>();
+    private boolean creatorMode = false;
 
     /**
      * Constructor for the DeathSwap class.
@@ -99,7 +101,8 @@ public class DeathSwap implements Listener {
                 swapPlayers();
             }
         };
-        swapTimerTask.runTaskTimer(plugin, (long) swapInterval * TICKS_PER_SECOND, (long) swapInterval * TICKS_PER_SECOND);
+        swapTimerTask.runTaskTimer(plugin, (long) swapInterval * TICKS_PER_SECOND,
+                (long) swapInterval * TICKS_PER_SECOND);
     }
 
     /**
@@ -231,8 +234,72 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Enters setup mode for the DeathSwap game.
+     *
+     * @param sender The sender of the command.
+     */
+    public void setup(CommandSender sender) {
+        if (!sender.isOp()) {
+            sender.sendMessage("You don't have permission to use this command.");
+            return;
+        }
+
+        // Load configuration
+        FileConfiguration config = configManager.getGameConfig("deathswap");
+
+        // Set up default values if they don't exist
+        if (!config.contains("minSwapTime")) {
+            config.set("minSwapTime", 30); // Default minimum swap time in seconds
+        }
+        if (!config.contains("maxSwapTime")) {
+            config.set("maxSwapTime", 300); // Default maximum swap time in seconds
+        }
+        if (!config.contains("warningTime")) {
+            config.set("warningTime", 10); // Default warning time before swap in seconds
+        }
+
+        // Save the configuration
+        configManager.saveGameConfig("deathswap");
+
+        sender.sendMessage("DeathSwap setup complete. Configuration saved.");
+        sender.sendMessage("You can modify the following settings in the deathswap.yml file:");
+        sender.sendMessage("- minSwapTime: Minimum time between swaps (in seconds)");
+        sender.sendMessage("- maxSwapTime: Maximum time between swaps (in seconds)");
+        sender.sendMessage("- warningTime: Time before swap to warn players (in seconds)");
+    }
+
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         handlePlayerDisconnect(event.getPlayer());
+    }
+
+    /**
+     * Enables or disables creator mode for the game admin.
+     *
+     * @param sender The command sender (game admin).
+     * @param enable True to enable creator mode, false to disable.
+     */
+    public void setCreatorMode(CommandSender sender, boolean enable) {
+        if (!sender.isOp()) {
+            sender.sendMessage("You don't have permission to use this command.");
+            return;
+        }
+
+        this.creatorMode = enable;
+        if (enable) {
+            sender.sendMessage("Creator mode enabled for DeathSwap. You can now set up the game environment.");
+        } else {
+            sender.sendMessage("Creator mode disabled for DeathSwap.");
+        }
+    }
+
+    /**
+     * Checks if creator mode is currently enabled.
+     *
+     * @return True if creator mode is enabled, false otherwise.
+     */
+    public boolean isCreatorModeEnabled() {
+        return creatorMode;
     }
 }
