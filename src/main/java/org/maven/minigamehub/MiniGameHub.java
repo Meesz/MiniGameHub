@@ -18,6 +18,10 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+/**
+ * Main class for the MiniGameHub plugin.
+ * This class handles the initialization and management of the plugin, including commands and game setup.
+ */
 public final class MiniGameHub extends JavaPlugin {
     private ConfigManager configManager;
     private SurvivalGames survivalGames;
@@ -26,6 +30,10 @@ public final class MiniGameHub extends JavaPlugin {
     private WorldManager worldManager;
     private DeathSwapCommands deathSwapCommands;
 
+    /**
+     * Called when the plugin is enabled.
+     * Initializes the plugin and its components.
+     */
     @Override
     public void onEnable() {
         getLogger().info("Enabling MiniGameHub...");
@@ -38,12 +46,19 @@ public final class MiniGameHub extends JavaPlugin {
         }
     }
 
+    /**
+     * Initializes the plugin components, including the configuration manager and games.
+     */
     private void initializePlugin() {
         getLogger().info("Initializing ConfigManager...");
         configManager = new ConfigManager(this);
         initializeGames();
     }
 
+    /**
+     * Initializes the games supported by the plugin.
+     * Checks for the presence of Multiverse-Core and sets up the games accordingly.
+     */
     private void initializeGames() {
         MultiverseCore core = (MultiverseCore) getServer().getPluginManager().getPlugin("Multiverse-Core");
         if (core != null && core.isEnabled()) {
@@ -63,11 +78,24 @@ public final class MiniGameHub extends JavaPlugin {
         getCommand("deathswap").setExecutor(deathSwapCommands);
     }
 
+    /**
+     * Called when the plugin is disabled.
+     * Logs a message indicating that the plugin has been disabled.
+     */
     @Override
     public void onDisable() {
         getLogger().info("MiniGameHub has been disabled!");
     }
 
+    /**
+     * Handles commands sent to the plugin.
+     * 
+     * @param sender  The sender of the command.
+     * @param command The command that was sent.
+     * @param label   The alias of the command which was used.
+     * @param args    The arguments passed to the command.
+     * @return true if the command was handled successfully, false otherwise.
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.isOp()) {
@@ -100,6 +128,13 @@ public final class MiniGameHub extends JavaPlugin {
         }
     }
 
+    /**
+     * Handles the setup command for the plugin.
+     * 
+     * @param sender The sender of the command.
+     * @param args   The arguments passed to the command.
+     * @return true if the command was handled successfully, false otherwise.
+     */
     private boolean handleSetupCommand(CommandSender sender, String[] args) {
         if (args.length < 3) {
             sender.sendMessage("Usage: /minigame setup <game> <world>");
@@ -115,6 +150,13 @@ public final class MiniGameHub extends JavaPlugin {
         return true;
     }
 
+    /**
+     * Handles the start command for the plugin.
+     * 
+     * @param sender The sender of the command.
+     * @param args   The arguments passed to the command.
+     * @return true if the command was handled successfully, false otherwise.
+     */
     private boolean handleStartCommand(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage("Usage: /minigame start <game> [world] [player1] [player2] ...");
@@ -141,6 +183,13 @@ public final class MiniGameHub extends JavaPlugin {
         return true;
     }
 
+    /**
+     * Handles the enable/disable creator mode command for the plugin.
+     * 
+     * @param sender The sender of the command.
+     * @param args   The arguments passed to the command.
+     * @return true if the command was handled successfully, false otherwise.
+     */
     private boolean handleCreatorModeCommand(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage("Usage: /minigame " + args[0] + " <game>");
@@ -164,6 +213,14 @@ public final class MiniGameHub extends JavaPlugin {
         return true;
     }
 
+    /**
+     * Starts the specified game with the given parameters.
+     * 
+     * @param game        The name of the game to start.
+     * @param worldName   The name of the world to use for the game (if applicable).
+     * @param playerNames The list of player names participating in the game.
+     * @param sender      The sender of the command.
+     */
     private void startGame(String game, String worldName, List<String> playerNames, CommandSender sender) {
         try {
             switch (game) {
@@ -201,6 +258,13 @@ public final class MiniGameHub extends JavaPlugin {
         }
     }
 
+    /**
+     * Starts the SurvivalGames game.
+     * 
+     * @param sender      The sender of the command.
+     * @param worldName   The name of the world to use for the game.
+     * @param playerNames The list of player names participating in the game.
+     */
     private void startSurvivalGames(CommandSender sender, String worldName, List<String> playerNames) {
         if (survivalGames != null) {
             survivalGames.start(sender, worldName, playerNames);
@@ -209,6 +273,12 @@ public final class MiniGameHub extends JavaPlugin {
         }
     }
 
+    /**
+     * Starts the DeathSwap game.
+     * 
+     * @param sender      The sender of the command.
+     * @param playerNames The list of player names participating in the game.
+     */
     private void startDeathSwap(CommandSender sender, List<String> playerNames) {
         deathSwap.start(sender, playerNames);
     }

@@ -7,7 +7,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.maven.minigamehub.MiniGameHub;
 import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.games.DeathSwap;
-import org.maven.minigamehub.MiniGameHub;
 
 import java.util.Arrays;
 import java.util.List;
@@ -15,6 +14,10 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+/**
+ * Command executor for DeathSwap game commands.
+ * This class handles the execution of commands related to the DeathSwap game.
+ */
 public class DeathSwapCommands implements CommandExecutor {
   private final MiniGameHub plugin;
   private final DeathSwap deathSwap;
@@ -23,16 +26,34 @@ public class DeathSwapCommands implements CommandExecutor {
   private static final String NO_PERMISSION_MESSAGE = "§c❌ You don't have permission to use this command.";
   private static final String USAGE_MESSAGE = "§cUsage: /deathswap <start|setup|enable|disable|help>";
 
+  /**
+   * Constructor for DeathSwapCommands.
+   *
+   * @param deathSwap The DeathSwap game instance.
+   * @param configManager The configuration manager.
+   * @param plugin The main plugin instance.
+   */
   public DeathSwapCommands(DeathSwap deathSwap, ConfigManager configManager, MiniGameHub plugin) {
     this.deathSwap = Objects.requireNonNull(deathSwap, "DeathSwap cannot be null");
     this.configManager = Objects.requireNonNull(configManager, "ConfigManager cannot be null");
     this.plugin = Objects.requireNonNull(plugin, "Plugin cannot be null");
   }
 
+  /**
+   * Starts the DeathSwap game with the specified players.
+   *
+   * @param commandSender The sender of the command.
+   * @param playerNames The list of player names to start the game with.
+   */
   private void startGame(CommandSender commandSender, List<String> playerNames) {
     deathSwap.start(commandSender, playerNames);
   }
 
+  /**
+   * Sets up the DeathSwap game configuration.
+   *
+   * @param sender The sender of the command.
+   */
   private void setup(CommandSender sender) {
     if (!sender.isOp()) {
       sender.sendMessage(NO_PERMISSION_MESSAGE);
@@ -65,6 +86,12 @@ public class DeathSwapCommands implements CommandExecutor {
     sender.sendMessage("§b➤ warningTime: §7Time before swap to warn players (in seconds)");
   }
 
+  /**
+   * Enables or disables the creator mode for DeathSwap.
+   *
+   * @param sender The sender of the command.
+   * @param enable True to enable creator mode, false to disable.
+   */
   private void setCreatorMode(CommandSender sender, boolean enable) {
     if (!sender.isOp()) {
       sender.sendMessage(NO_PERMISSION_MESSAGE);
@@ -76,6 +103,15 @@ public class DeathSwapCommands implements CommandExecutor {
         : "§c❌ Creator mode disabled for DeathSwap.");
   }
 
+  /**
+   * Handles the execution of the /deathswap command.
+   *
+   * @param sender The sender of the command.
+   * @param command The command that was executed.
+   * @param label The alias of the command that was used.
+   * @param args The arguments passed to the command.
+   * @return True if the command was handled successfully, false otherwise.
+   */
   @Override
   public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
     if (!sender.isOp()) {
@@ -118,6 +154,11 @@ public class DeathSwapCommands implements CommandExecutor {
     return true;
   }
 
+  /**
+   * Shows the help and rules for the DeathSwap game.
+   *
+   * @param sender The sender of the command.
+   */
   private void showHelpAndRules(CommandSender sender) {
     sender.sendMessage("§6§l=== DeathSwap Help and Rules ===");
     sender.sendMessage("§e§lGame Overview:");

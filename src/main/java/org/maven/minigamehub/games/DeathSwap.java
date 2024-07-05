@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 /**
  * DeathSwap game class
+ * This class handles the logic for the DeathSwap game, including player management, game state, and event handling.
  */
 public class DeathSwap implements Listener {
     private static final int TICKS_PER_SECOND = 20;
@@ -40,6 +41,13 @@ public class DeathSwap implements Listener {
     private String currentGameWorld;
     private final Location mainWorldSpawnLocation;
 
+    /**
+     * Constructor for the DeathSwap class.
+     *
+     * @param plugin        The JavaPlugin instance.
+     * @param configManager The ConfigManager instance.
+     * @param worldManager  The WorldManager instance.
+     */
     public DeathSwap(JavaPlugin plugin, ConfigManager configManager, WorldManager worldManager) {
         this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
         this.worldManager = Objects.requireNonNull(worldManager, "worldManager cannot be null");
@@ -52,10 +60,19 @@ public class DeathSwap implements Listener {
         registerEvents();
     }
 
+    /**
+     * Registers the event listeners for the DeathSwap game.
+     */
     private void registerEvents() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    /**
+     * Starts the DeathSwap game.
+     *
+     * @param commandSender The sender of the start command.
+     * @param playerNames   The list of player names to participate in the game.
+     */
     public void start(CommandSender commandSender, List<String> playerNames) {
         if (isGameRunning()) {
             commandSender.sendMessage(BROADCAST_PREFIX + "A game is already in progress.");
@@ -115,6 +132,13 @@ public class DeathSwap implements Listener {
         Bukkit.broadcastMessage(BROADCAST_PREFIX + "Game is starting with players: " + playerNames);
     }
 
+    /**
+     * Validates the list of player names and returns a list of valid players.
+     *
+     * @param playerNames   The list of player names to validate.
+     * @param commandSender The sender of the command to start the game.
+     * @return The list of valid players.
+     */
     private List<Player> validatePlayers(List<String> playerNames, CommandSender commandSender) {
         List<Player> validPlayers = new ArrayList<>();
         List<String> offlinePlayers = new ArrayList<>();
@@ -136,6 +160,11 @@ public class DeathSwap implements Listener {
         return validPlayers;
     }
 
+    /**
+     * Prepares the players for the game by clearing their inventories and storing their current items.
+     *
+     * @param validPlayers The list of valid players.
+     */
     private void preparePlayersForGame(List<Player> validPlayers) {
         for (Player player : validPlayers) {
             playerInventories.put(player, player.getInventory().getContents());
@@ -145,6 +174,9 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Starts the swap timer that periodically swaps the players' locations.
+     */
     private void startSwapTimer() {
         if (swapTimerTask != null) {
             swapTimerTask.cancel();
@@ -167,6 +199,11 @@ public class DeathSwap implements Listener {
         swapTimerTask.runTaskTimer(plugin, 0L, TICKS_PER_SECOND);
     }
 
+    /**
+     * Broadcasts the countdown to all players.
+     *
+     * @param seconds The number of seconds remaining until the swap.
+     */
     private void broadcastCountdown(int seconds) {
         String message = BROADCAST_PREFIX + "Swapping in " + seconds + " second" + (seconds == 1 ? "" : "s") + "!";
         for (Player player : gamePlayers) {
@@ -175,6 +212,9 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Swaps the locations of the players.
+     */
     private void swapPlayers() {
         if (alivePlayers.size() < 2) {
             stopGame();
@@ -197,6 +237,11 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Handles the player respawn event.
+     *
+     * @param event The PlayerRespawnEvent.
+     */
     public void handlePlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         Location respawnLocation = alivePlayers.size() > 1 ? Bukkit.getWorld(currentGameWorld).getSpawnLocation()
@@ -207,6 +252,9 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Stops the DeathSwap game and resets the game state.
+     */
     public void stopGame() {
         try {
             if (swapTimerTask != null) {
@@ -246,6 +294,9 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Resets the game state by clearing all player data and game-related collections.
+     */
     private void resetGameState() {
         playerInventories.clear();
         playerArmor.clear();
@@ -254,6 +305,11 @@ public class DeathSwap implements Listener {
         spectators.clear();
     }
 
+    /**
+     * Handles the player death event.
+     *
+     * @param event The PlayerDeathEvent.
+     */
     public void handlePlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
         if (alivePlayers.remove(player)) {
@@ -275,6 +331,11 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Handles the player disconnect event.
+     *
+     * @param player The player who disconnected.
+     */
     public void handlePlayerDisconnect(Player player) {
         if (alivePlayers.remove(player)) {
             player.getInventory().setContents(playerInventories.remove(player));
@@ -290,20 +351,40 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Sets the creator mode for the game.
+     *
+     * @param creatorMode true to enable creator mode, false to disable.
+     */
     public void setCreatorMode(boolean creatorMode) {
         this.creatorMode = creatorMode;
     }
 
+    /**
+     * Checks if the creator mode is enabled.
+     *
+     * @return true if creator mode is enabled, false otherwise.
+     */
     public boolean isCreatorModeEnabled() {
         return creatorMode;
     }
 
+    /**
+     * Gets the set of alive players.
+     *
+     * @return An unmodifiable set of alive players.
+     */
     public Set<Player> getAlivePlayers() {
         return Collections.unmodifiableSet(alivePlayers);
     }
 
     private final Map<Player, Integer> spectatorTargets = new HashMap<>();
 
+    /**
+     * Handles the player interact event.
+     *
+     * @param event The PlayerInteractEvent.
+     */
     public void handlePlayerInteract(PlayerInteractEvent event) {
         Player interactingPlayer = event.getPlayer();
 
@@ -332,6 +413,13 @@ public class DeathSwap implements Listener {
         }
     }
 
+    /**
+     * Gets the next target player for a spectator to teleport to.
+     *
+     * @param activePlayers The set of active players.
+     * @param index         The index of the next target player.
+     * @return The next target player.
+     */
     private Player getNextTargetPlayer(Set<Player> activePlayers, int index) {
         List<Player> playerList = new ArrayList<>(activePlayers);
         if (playerList.isEmpty()) {

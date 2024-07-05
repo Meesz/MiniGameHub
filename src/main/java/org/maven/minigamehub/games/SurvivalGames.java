@@ -62,12 +62,19 @@ public class SurvivalGames implements Listener {
         loadConfiguration();
     }
 
+    /**
+     * Loads the configuration for the SurvivalGames game.
+     * This includes loading spawn points, assigned worlds, and respawn points.
+     */
     private void loadConfiguration() {
         loadSpawnPoints();
         loadAssignedWorlds();
         loadRespawnPoints();
     }
 
+    /**
+     * Loads the spawn points from the configuration.
+     */
     private void loadSpawnPoints() {
         if (configManager.getGameConfig("survivalgames").contains("worldSpawnPoints")) {
             List<?> spawnPointsList = configManager.getGameConfig("survivalgames").getList("worldSpawnPoints");
@@ -77,6 +84,9 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Loads the assigned worlds from the configuration.
+     */
     private void loadAssignedWorlds() {
         if (configManager.getGameConfig("survivalgames").contains("assignedWorlds")) {
             List<String> assignedWorlds = configManager.getGameConfig("survivalgames").getStringList("assignedWorlds");
@@ -96,6 +106,9 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Loads the respawn points from the configuration.
+     */
     private void loadRespawnPoints() {
         if (configManager.getGameConfig("survivalgames").contains("worldRespawnPoints")) {
             List<?> respawnPointsList = configManager.getGameConfig("survivalgames").getList("worldRespawnPoints");
@@ -158,6 +171,12 @@ public class SurvivalGames implements Listener {
         startGameWithDelay(gameSpawnPoints);
     }
 
+    /**
+     * Retrieves a list of valid players from the provided player names.
+     *
+     * @param playerNames The list of player names to validate.
+     * @return A list of valid players.
+     */
     private List<Player> getValidPlayers(List<String> playerNames) {
         return playerNames.stream()
                 .map(Bukkit::getPlayer)
@@ -167,11 +186,21 @@ public class SurvivalGames implements Listener {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Saves the player's inventory and clears it.
+     *
+     * @param player The player whose inventory will be saved and cleared.
+     */
     private void saveAndClearInventory(Player player) {
         playerInventories.put(player, player.getInventory().getContents());
         player.getInventory().clear();
     }
 
+    /**
+     * Starts the game with a delay, teleporting players to their spawn points.
+     *
+     * @param spawnPoints The list of spawn points to teleport players to.
+     */
     private void startGameWithDelay(List<Location> spawnPoints) {
         new BukkitRunnable() {
             @Override
@@ -188,6 +217,11 @@ public class SurvivalGames implements Listener {
         }.runTaskLater(plugin, SLOWNESS_EFFECT_DURATION);
     }
 
+    /**
+     * Teleports players to their respective spawn points.
+     *
+     * @param spawnPoints The list of spawn points to teleport players to.
+     */
     private void teleportPlayersToSpawnPoints(List<Location> spawnPoints) {
         for (int i = 0; i < players.size(); i++) {
             Player player = players.get(i);
@@ -202,6 +236,9 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Removes the slowness effect from all players.
+     */
     private void removeSlownessEffectFromPlayers() {
         players.forEach(player -> {
             if (player != null) {
@@ -233,6 +270,11 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Restores the player's state, including their inventory.
+     *
+     * @param player The player whose state will be restored.
+     */
     private void restorePlayerState(Player player) {
         if (player != null) {
             try {
@@ -248,6 +290,9 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Cleans up the game state, clearing player lists and inventories.
+     */
     private void cleanupGame() {
         players.clear();
         playerInventories.clear();
@@ -265,6 +310,12 @@ public class SurvivalGames implements Listener {
         sender.sendMessage("Entered setup mode for Survival Games in world: " + worldName);
     }
 
+    /**
+     * Handles player interaction events.
+     * If the player is in creator mode and is an operator, sets a spawn point.
+     *
+     * @param event The PlayerInteractEvent.
+     */
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (!getCreatorMode() || !event.getPlayer().isOp()) return;
@@ -279,6 +330,12 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles block break events.
+     * If the player is in the game, cancels the event.
+     *
+     * @param event The BlockBreakEvent.
+     */
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         if (players.contains(event.getPlayer())) {
@@ -286,6 +343,12 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles player respawn events.
+     * If the player is in the list of dead players, respawns them.
+     *
+     * @param event The PlayerRespawnEvent.
+     */
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
@@ -294,6 +357,12 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles player death events.
+     * If the player is in the game, sets their game mode to spectator and checks for a winner.
+     *
+     * @param event The PlayerDeathEvent.
+     */
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
@@ -305,6 +374,11 @@ public class SurvivalGames implements Listener {
         deadPlayers.add(player);
     }
 
+    /**
+     * Respawns the player at a respawn point if they are in the game.
+     *
+     * @param player The player to respawn.
+     */
     private void respawnPlayer(Player player) {
         if (isPlayerInGame(player)) {
             List<Location> respawnPoints = worldRespawnPoints.get(player.getWorld().getName());
@@ -314,6 +388,12 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles player disconnection.
+     * If the player is in the game, removes them and checks for a winner.
+     *
+     * @param player The player who disconnected.
+     */
     public void handlePlayerDisconnect(Player player) {
         if (isPlayerInGame(player)) {
             players.remove(player);
@@ -323,11 +403,22 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Handles player quit events.
+     * Calls handlePlayerDisconnect for the player who quit.
+     *
+     * @param event The PlayerQuitEvent.
+     */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         handlePlayerDisconnect(event.getPlayer());
     }
 
+    /**
+     * Checks for a winner in the game.
+     * If there is only one player left, declares them the winner and stops the game.
+     * If no players are left, announces the end of the game.
+     */
     private void checkForWinner() {
         if (players.size() == 1) {
             Player winner = players.get(0);
@@ -341,20 +432,40 @@ public class SurvivalGames implements Listener {
         }
     }
 
+    /**
+     * Checks if a player is in the game.
+     *
+     * @param player The player to check.
+     * @return True if the player is in the game, false otherwise.
+     */
     private boolean isPlayerInGame(Player player) {
         return player != null && players.contains(player);
     }
 
+    /**
+     * Checks if the game is currently running.
+     *
+     * @return True if the game is running, false otherwise.
+     */
     private boolean isGameRunning() {
         return gameRunning;
     }
 
+    /**
+     * Saves the spawn points to the configuration.
+     */
     private void saveSpawnPoints() {
         List<String> spawnPointsList = convertSpawnPointsToList(worldSpawnPoints);
         configManager.getGameConfig("survivalgames").set("worldSpawnPoints", spawnPointsList);
         configManager.saveGameConfig("survivalgames");
     }
 
+    /**
+     * Converts the spawn points map to a list of strings.
+     *
+     * @param spawnPoints The map of spawn points.
+     * @return A list of strings representing the spawn points.
+     */
     private List<String> convertSpawnPointsToList(Map<String, List<Location>> spawnPoints) {
         List<String> spawnPointsList = new ArrayList<>();
         for (Map.Entry<String, List<Location>> entry : spawnPoints.entrySet()) {
@@ -367,12 +478,22 @@ public class SurvivalGames implements Listener {
         return spawnPointsList;
     }
 
+    /**
+     * Sets the creator mode for the game.
+     *
+     * @param enable True to enable creator mode, false to disable.
+     */
     public void setCreatorMode(boolean enable) {
         creatorModeEnabled = enable;
         String status = enable ? "enabled" : "disabled";
         plugin.getLogger().info("Creator mode " + status + " for Survival Games.");
     }
 
+    /**
+     * Gets the current status of creator mode.
+     *
+     * @return True if creator mode is enabled, false otherwise.
+     */
     public boolean getCreatorMode() {
         return creatorModeEnabled;
     }
