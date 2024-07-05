@@ -4,94 +4,102 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.maven.minigamehub.MiniGameHub;
 import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.games.DeathSwap;
 import org.maven.minigamehub.MiniGameHub;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class DeathSwapCommands implements CommandExecutor {
   private final MiniGameHub plugin;
   private final DeathSwap deathSwap;
   private final ConfigManager configManager;
 
+  private static final String NO_PERMISSION_MESSAGE = "§c❌ You don't have permission to use this command.";
+  private static final String USAGE_MESSAGE = "§cUsage: /deathswap <start|setup|enable|disable|help>";
+
   public DeathSwapCommands(DeathSwap deathSwap, ConfigManager configManager, MiniGameHub plugin) {
-    this.deathSwap = deathSwap;
-    this.configManager = configManager;
-    this.plugin = plugin;
+    this.deathSwap = Objects.requireNonNull(deathSwap, "DeathSwap cannot be null");
+    this.configManager = Objects.requireNonNull(configManager, "ConfigManager cannot be null");
+    this.plugin = Objects.requireNonNull(plugin, "Plugin cannot be null");
   }
 
-  public void startGame(CommandSender commandSender, List<String> playerNames) {
+  private void startGame(CommandSender commandSender, List<String> playerNames) {
     deathSwap.start(commandSender, playerNames);
   }
 
-  public void setup(CommandSender sender) {
+  private void setup(CommandSender sender) {
     if (!sender.isOp()) {
-      sender.sendMessage("§c❌ You don't have permission to use this command.");
+      sender.sendMessage(NO_PERMISSION_MESSAGE);
       return;
     }
 
-    // Load configuration
     FileConfiguration config = configManager.getGameConfig("deathswap");
 
-    // Set up default values if they don't exist
     if (!config.contains("minSwapTime")) {
-      config.set("minSwapTime", 30); // Default minimum swap time in seconds
+      config.set("minSwapTime", 30);
     }
     if (!config.contains("maxSwapTime")) {
-      config.set("maxSwapTime", 300); // Default maximum swap time in seconds
+      config.set("maxSwapTime", 300);
     }
     if (!config.contains("warningTime")) {
-      config.set("warningTime", 10); // Default warning time before swap in seconds
+      config.set("warningTime", 10);
     }
 
-    // Save the configuration
-    configManager.saveGameConfig("deathswap");
+    try {
+      configManager.saveGameConfig("deathswap");
+      sender.sendMessage("§a✔ DeathSwap setup complete. Configuration saved.");
+    } catch (Exception e) {
+      sender.sendMessage("§c❌ Failed to save configuration.");
+      plugin.getLogger().log(Level.SEVERE, "Failed to save deathswap configuration", e);
+    }
 
-    sender.sendMessage("§a✔ DeathSwap setup complete. Configuration saved.");
     sender.sendMessage("§eYou can modify the following settings in the deathswap.yml file:");
     sender.sendMessage("§b➤ minSwapTime: §7Minimum time between swaps (in seconds)");
     sender.sendMessage("§b➤ maxSwapTime: §7Maximum time between swaps (in seconds)");
     sender.sendMessage("§b➤ warningTime: §7Time before swap to warn players (in seconds)");
   }
 
-  public void setCreatorMode(CommandSender sender, boolean enable) {
+  private void setCreatorMode(CommandSender sender, boolean enable) {
     if (!sender.isOp()) {
-      sender.sendMessage("§c❌ You don't have permission to use this command.");
+      sender.sendMessage(NO_PERMISSION_MESSAGE);
       return;
     }
 
     deathSwap.setCreatorMode(enable);
-    if (enable) {
-      sender.sendMessage("§a✔ Creator mode enabled for DeathSwap. You can now set up the game environment.");
-    } else {
-      sender.sendMessage("§c❌ Creator mode disabled for DeathSwap.");
-    }
+    sender.sendMessage(enable ? "§a✔ Creator mode enabled for DeathSwap. You can now set up the game environment."
+        : "§c❌ Creator mode disabled for DeathSwap.");
   }
 
   @Override
   public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
     if (!sender.isOp()) {
-      sender.sendMessage("§c❌ You don't have permission to use this command.");
+      sender.sendMessage(NO_PERMISSION_MESSAGE);
       return true;
     }
 
     if (args.length < 1) {
-      sender.sendMessage("§cUsage: /deathswap <start|setup|enable|disable> ...");
+      sender.sendMessage(USAGE_MESSAGE);
       return true;
     }
+
+    plugin.getLogger().log(Level.INFO, "User {0} executed /deathswap {1}", new Object[] { sender.getName(), args[0] });
 
     switch (args[0].toLowerCase()) {
       case "help":
         showHelpAndRules(sender);
         break;
       case "start":
-        if (args.length < 3) {
+        if (args.length < 2) {
           sender.sendMessage("§cUsage: /deathswap start <player1> <player2> ...");
           return true;
         }
-        List<String> playerNames = Arrays.asList(Arrays.copyOfRange(args, 1, args.length));
+        List<String> playerNames = Arrays.stream(args, 1, args.length).collect(Collectors.toList());
         startGame(sender, playerNames);
         break;
       case "setup":
@@ -104,13 +112,13 @@ public class DeathSwapCommands implements CommandExecutor {
         setCreatorMode(sender, false);
         break;
       default:
-        sender.sendMessage("§cUnknown subcommand. Usage: /deathswap <start|setup|enable|disable> ...");
+        sender.sendMessage(USAGE_MESSAGE);
         break;
     }
     return true;
   }
 
-  public void showHelpAndRules(CommandSender sender) {
+  private void showHelpAndRules(CommandSender sender) {
     sender.sendMessage("§6§l=== DeathSwap Help and Rules ===");
     sender.sendMessage("§e§lGame Overview:");
     sender.sendMessage(
