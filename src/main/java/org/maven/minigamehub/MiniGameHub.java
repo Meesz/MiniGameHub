@@ -1,9 +1,7 @@
 package org.maven.minigamehub;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.Level;
-
+import com.onarandombox.MultiverseCore.MultiverseCore;
+import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -11,17 +9,15 @@ import org.maven.minigamehub.config.ConfigManager;
 import org.maven.minigamehub.games.DeathSwap;
 import org.maven.minigamehub.games.Spleef;
 import org.maven.minigamehub.games.SurvivalGames;
-import com.onarandombox.MultiverseCore.api.MVWorldManager;
-import com.onarandombox.MultiverseCore.MultiverseCore;
 import org.maven.minigamehub.world.WorldManager;
+import org.maven.minigamehub.commands.DeathSwapCommands;
 import org.maven.minigamehub.listeners.DeathSwapListeners;
-import org.maven.minigamehub.commands.DeathSwapCommands; // Import the DeathSwapCommands class
 
-/**
- * Main class for the MiniGameHub plugin.
- * This class handles the enabling, disabling, and command processing for the
- * plugin.
- */
+import java.util.Arrays;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
+
 public final class MiniGameHub extends JavaPlugin {
     private ConfigManager configManager;
     private SurvivalGames survivalGames;
@@ -30,15 +26,12 @@ public final class MiniGameHub extends JavaPlugin {
     private WorldManager worldManager;
     private DeathSwapCommands deathSwapCommands;
 
-    /**
-     * Called when the plugin is enabled.
-     * Initializes the configuration manager and sets up the game instances.
-     */
     @Override
     public void onEnable() {
         getLogger().info("Enabling MiniGameHub...");
         try {
             initializePlugin();
+            getLogger().info("MiniGameHub has been enabled!");
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "An error occurred while enabling MiniGameHub: " + e.getMessage(), e);
             getServer().getPluginManager().disablePlugin(this);
@@ -48,11 +41,7 @@ public final class MiniGameHub extends JavaPlugin {
     private void initializePlugin() {
         getLogger().info("Initializing ConfigManager...");
         configManager = new ConfigManager(this);
-
-        getLogger().info("Initializing games...");
         initializeGames();
-
-        getLogger().info("MiniGameHub has been enabled!");
     }
 
     private void initializeGames() {
@@ -71,29 +60,14 @@ public final class MiniGameHub extends JavaPlugin {
         deathSwap = new DeathSwap(this, configManager, worldManager);
         deathSwapCommands = new DeathSwapCommands(deathSwap, configManager, this);
         getServer().getPluginManager().registerEvents(new DeathSwapListeners(deathSwap), this);
-        getCommand("deathswap").setExecutor(deathSwapCommands); //
-        // Register the DeathSwapCommands executor
-        // spleef = new Spleef();
+        getCommand("deathswap").setExecutor(deathSwapCommands);
     }
 
-    /**
-     * Called when the plugin is disabled.
-     * Logs that the plugin has been disabled.
-     */
     @Override
     public void onDisable() {
         getLogger().info("MiniGameHub has been disabled!");
     }
 
-    /**
-     * Handles commands sent to the plugin.
-     *
-     * @param sender  The sender of the command.
-     * @param command The command that was sent.
-     * @param label   The alias of the command that was used.
-     * @param args    The arguments passed with the command.
-     * @return true if the command was handled, false otherwise.
-     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.isOp()) {
@@ -122,8 +96,8 @@ public final class MiniGameHub extends JavaPlugin {
         } catch (Exception e) {
             sender.sendMessage("An error occurred while executing the command: " + e.getMessage());
             getLogger().log(Level.SEVERE, "Error executing command: " + e.getMessage(), e);
+            return true;
         }
-        return false;
     }
 
     private boolean handleSetupCommand(CommandSender sender, String[] args) {
@@ -131,7 +105,8 @@ public final class MiniGameHub extends JavaPlugin {
             sender.sendMessage("Usage: /minigame setup <game> <world>");
             return true;
         }
-        if (args[1].equalsIgnoreCase("survivalgames")) {
+
+        if ("survivalgames".equalsIgnoreCase(args[1])) {
             String worldName = args[2];
             survivalGames.setupWorld(sender, worldName);
         } else {
@@ -145,19 +120,20 @@ public final class MiniGameHub extends JavaPlugin {
             sender.sendMessage("Usage: /minigame start <game> [world] [player1] [player2] ...");
             return true;
         }
+
         String game = args[1].toLowerCase();
         List<String> playerNames;
         String worldName = null;
 
-        if (game.equals("survivalgames")) {
+        if ("survivalgames".equals(game)) {
             if (args.length < 4) {
                 sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
                 return true;
             }
             worldName = args[2];
-            playerNames = Arrays.asList(Arrays.copyOfRange(args, 3, args.length));
+            playerNames = Arrays.stream(args, 3, args.length).collect(Collectors.toList());
         } else {
-            playerNames = Arrays.asList(Arrays.copyOfRange(args, 2, args.length));
+            playerNames = Arrays.stream(args, 2, args.length).collect(Collectors.toList());
         }
 
         sender.sendMessage("Starting the " + game + " game...");
@@ -170,13 +146,20 @@ public final class MiniGameHub extends JavaPlugin {
             sender.sendMessage("Usage: /minigame " + args[0] + " <game>");
             return true;
         }
-        boolean enable = args[0].equalsIgnoreCase("enable");
-        if (args[1].equalsIgnoreCase("survivalgames")) {
-            survivalGames.setCreatorMode(enable);
-        } else if (args[1].equalsIgnoreCase("deathswap")) {
-            deathSwap.setCreatorMode(enable);
-        } else {
-            sender.sendMessage("Unknown game for " + (enable ? "enabling" : "disabling") + " creator mode: " + args[1]);
+
+        boolean enable = "enable".equalsIgnoreCase(args[0]);
+
+        switch (args[1].toLowerCase()) {
+            case "survivalgames":
+                survivalGames.setCreatorMode(enable);
+                break;
+            case "deathswap":
+                deathSwap.setCreatorMode(enable);
+                break;
+            default:
+                sender.sendMessage(
+                        "Unknown game for " + (enable ? "enabling" : "disabling") + " creator mode: " + args[1]);
+                break;
         }
         return true;
     }
@@ -184,7 +167,6 @@ public final class MiniGameHub extends JavaPlugin {
     private void startGame(String game, String worldName, List<String> playerNames, CommandSender sender) {
         try {
             switch (game) {
-                case "hungergames":
                 case "survivalgames":
                     if (worldName == null) {
                         sender.sendMessage(
@@ -221,10 +203,6 @@ public final class MiniGameHub extends JavaPlugin {
 
     private void startSurvivalGames(CommandSender sender, String worldName, List<String> playerNames) {
         if (survivalGames != null) {
-            if (worldName == null || playerNames.isEmpty()) {
-                sender.sendMessage("Usage: /minigame start survivalgames <world> <player1> <player2> ...");
-                return;
-            }
             survivalGames.start(sender, worldName, playerNames);
         } else {
             sender.sendMessage("SurvivalGames is not available. Make sure Multiverse-Core is installed.");
