@@ -6,6 +6,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.maven.minigamehub.config.ConfigManager;
+import org.maven.minigamehub.config.DataManager;
 import org.maven.minigamehub.games.DeathSwap;
 import org.maven.minigamehub.games.Spleef;
 import org.maven.minigamehub.games.SurvivalGames;
@@ -20,7 +21,8 @@ import java.util.stream.Collectors;
 
 /**
  * Main class for the MiniGameHub plugin.
- * This class handles the initialization and management of the plugin, including commands and game setup.
+ * This class handles the initialization and management of the plugin, including
+ * commands and game setup.
  */
 public final class MiniGameHub extends JavaPlugin {
     private ConfigManager configManager;
@@ -29,6 +31,7 @@ public final class MiniGameHub extends JavaPlugin {
     private Spleef spleef;
     private WorldManager worldManager;
     private DeathSwapCommands deathSwapCommands;
+    private DataManager dataManager;
 
     /**
      * Called when the plugin is enabled.
@@ -47,7 +50,8 @@ public final class MiniGameHub extends JavaPlugin {
     }
 
     /**
-     * Initializes the plugin components, including the configuration manager and games.
+     * Initializes the plugin components, including the configuration manager and
+     * games.
      */
     private void initializePlugin() {
         getLogger().info("Initializing ConfigManager...");
@@ -72,7 +76,8 @@ public final class MiniGameHub extends JavaPlugin {
             worldManager = null;
         }
 
-        deathSwap = new DeathSwap(this, configManager, worldManager);
+        dataManager = new DataManager(this);
+        deathSwap = new DeathSwap(this, configManager, worldManager, dataManager);
         deathSwapCommands = new DeathSwapCommands(deathSwap, configManager, this);
         getServer().getPluginManager().registerEvents(new DeathSwapListeners(deathSwap), this);
         getCommand("deathswap").setExecutor(deathSwapCommands);

@@ -317,10 +317,12 @@ public class DeathSwap implements Listener {
                 swapTimerTask = null;
             }
 
-            Player winner = null;
+            final Player winner;
             // Determine the winner if there is only one alive player
             if (alivePlayers.size() == 1) {
                 winner = alivePlayers.iterator().next();
+            } else {
+                winner = null;
             }
 
             // Restore player inventories and teleport them to the main world spawn location
