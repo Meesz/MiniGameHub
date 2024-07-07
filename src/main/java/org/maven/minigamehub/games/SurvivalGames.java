@@ -49,8 +49,8 @@ public class SurvivalGames implements Listener {
     /**
      * Constructor for the SurvivalGames class.
      *
-     * @param plugin       The JavaPlugin instance.
-     * @param worldManager The MVWorldManager instance.
+     * @param plugin        The JavaPlugin instance.
+     * @param worldManager  The MVWorldManager instance.
      * @param configManager The ConfigManager instance.
      */
     public SurvivalGames(JavaPlugin plugin, MVWorldManager worldManager, ConfigManager configManager) {
@@ -155,8 +155,9 @@ public class SurvivalGames implements Listener {
 
         // Update spawn points for the new world
         List<Location> gameSpawnPoints = spawnPoints.stream()
-            .map(loc -> new Location(gameWorld.getCBWorld(), loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch()))
-            .collect(Collectors.toList());
+                .map(loc -> new Location(gameWorld.getCBWorld(), loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(),
+                        loc.getPitch()))
+                .collect(Collectors.toList());
 
         List<Player> validPlayers = getValidPlayers(playerNames);
         if (validPlayers.size() < 2) {
@@ -318,7 +319,8 @@ public class SurvivalGames implements Listener {
      */
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (!getCreatorMode() || !event.getPlayer().isOp()) return;
+        if (!getCreatorMode() || !event.getPlayer().isOp())
+            return;
 
         Player player = event.getPlayer();
         if (player.getInventory().getItemInMainHand().getType() == Material.STICK) {
@@ -359,7 +361,8 @@ public class SurvivalGames implements Listener {
 
     /**
      * Handles player death events.
-     * If the player is in the game, sets their game mode to spectator and checks for a winner.
+     * If the player is in the game, sets their game mode to spectator and checks
+     * for a winner.
      *
      * @param event The PlayerDeathEvent.
      */
@@ -416,7 +419,8 @@ public class SurvivalGames implements Listener {
 
     /**
      * Checks for a winner in the game.
-     * If there is only one player left, declares them the winner and stops the game.
+     * If there is only one player left, declares them the winner and stops the
+     * game.
      * If no players are left, announces the end of the game.
      */
     private void checkForWinner() {
@@ -471,7 +475,8 @@ public class SurvivalGames implements Listener {
         for (Map.Entry<String, List<Location>> entry : spawnPoints.entrySet()) {
             String worldName = entry.getKey();
             for (Location location : entry.getValue()) {
-                String spawnPoint = String.format("%s,%f,%f,%f", worldName, location.getX(), location.getY(), location.getZ());
+                String spawnPoint = String.format("%s,%f,%f,%f", worldName, location.getX(), location.getY(),
+                        location.getZ());
                 spawnPointsList.add(spawnPoint);
             }
         }
