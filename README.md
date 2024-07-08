@@ -61,3 +61,22 @@ The Survival Games creator mode allows server administrators to set up spawn poi
 Once in creator mode, you can set spawn points by right-clicking blocks with a stick. Each right-click will register the location as a spawn point for the specified world. The plugin will store these locations and use them to teleport players when the game starts.
 
 To exit the creator mode, simply stop interacting with the blocks or use any other command. The spawn points will be saved and can be used in future matches. This setup ensures that all players have designated starting positions, making the game fair and organized.
+
+## Dependencies
+
+MiniGameHub relies on the following dependencies to function correctly:
+
+- **Multiverse-Core**: For managing multiple worlds.
+- **Spigot API**: For interacting with the Minecraft server.
+
+Ensure these dependencies are installed and properly configured on your server to enjoy the full functionality of MiniGameHub.
+
+## Support
+
+If you encounter any issues or have questions about MiniGameHub, please visit our [support page](https://example.com/support) or join our [Discord server](https://example.com/discord) for assistance.
+
+## Contributing
+
+We welcome contributions from the community! If you would like to contribute to MiniGameHub, please fork the repository and submit a pull request. For major changes, please open an issue first to discuss what you would like to change.
+
+Thank you for using MiniGameHub! We hope you and your players have an amazing time with our plugin.
